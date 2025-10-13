@@ -108,22 +108,13 @@ st.markdown("""
         border-top: 1px solid #e5e5e5;
     }
     
-    /* 메시지 시간 표시 */
-    .message-time {
-        text-align: center;
-        color: #999999;
-        font-size: 0.75rem;
-        margin: 1rem 0 0.5rem 0;
-        clear: both;
-    }
-    
     /* 분석 패널 - WeChat 스타일 */
     .analysis-panel {
         background: #f7f7f7;
         border-top: 1px solid #d9d9d9;
         border-bottom: 1px solid #d9d9d9;
         padding: 0;
-        margin: 0 -1rem;
+        margin: 1rem -1rem 0 -1rem;
     }
     
     .analysis-content {
@@ -212,13 +203,24 @@ st.markdown("""
         background: #f7f7f7;
         border-top: 1px solid #d9d9d9;
         padding: 0.625rem 1rem;
-        margin: 0 -1rem -1rem -1rem;
+        margin: 1rem -1rem 0 -1rem;
+    }
+    
+    /* 입력창과 버튼을 한 줄로 배치 */
+    .input-wrapper {
+        display: flex;
+        gap: 0.5rem;
+        align-items: center;
+    }
+    
+    .stTextInput {
+        flex: 1;
     }
     
     .stTextInput > div > div > input {
-        border-radius: 0.375rem;
+        border-radius: 1.5rem;
         border: 1px solid #d9d9d9;
-        padding: 0.625rem 0.875rem;
+        padding: 0.625rem 1rem;
         background: #ffffff;
         font-size: 0.9375rem;
     }
@@ -234,17 +236,21 @@ st.markdown("""
         cursor: not-allowed;
     }
     
-    /* 전송 버튼 - WeChat 그린 */
+    /* 전송 버튼 - 작고 둥글게 */
     .stButton > button[kind="primary"] {
         background: #09b83e;
         color: white;
         border: none;
-        border-radius: 0.375rem;
-        padding: 0.625rem 1.25rem;
-        font-size: 0.9375rem;
-        font-weight: 500;
-        width: 100%;
+        border-radius: 50%;
+        padding: 0.625rem;
+        width: 2.5rem;
+        height: 2.5rem;
+        font-size: 1.125rem;
         transition: background 0.2s;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        min-width: 2.5rem;
     }
     
     .stButton > button[kind="primary"]:hover {
@@ -254,6 +260,16 @@ st.markdown("""
     .stButton > button[kind="primary"]:disabled {
         background: #d9d9d9;
         color: #999999;
+    }
+    
+    /* 메시지 토글 버튼 숨김 */
+    .stButton > button:not([kind="primary"]) {
+        position: absolute;
+        opacity: 0;
+        pointer-events: none;
+        height: 0;
+        padding: 0;
+        margin: 0;
     }
     
     /* 사이드바 - WeChat 스타일 */
@@ -556,9 +572,6 @@ if len(st.session_state.messages) == 0:
     </div>
     """, unsafe_allow_html=True)
 else:
-    if st.session_state.messages:
-        st.markdown(f'<div class="message-time">{datetime.now().strftime("%p %I:%M")}</div>', unsafe_allow_html=True)
-    
     for idx, msg in enumerate(st.session_state.messages):
         if msg['role'] == 'user':
             st.markdown(f'<div class="user-message">{msg["content"]}</div><div style="clear:both;"></div>', unsafe_allow_html=True)
@@ -579,9 +592,10 @@ else:
                 <div class="translation-toggle">{toggle_text}</div>
                 """
             
+            # 메시지 클릭 처리
             col1, col2, col3 = st.columns([0.5, 10, 0.5])
             with col2:
-                if st.button(f"toggle_{idx}", key=f"msg_btn_{idx}", use_container_width=True):
+                if st.button(f"msg_{idx}", key=f"msg_btn_{idx}"):
                     if 'translation' in msg:
                         st.session_state.show_translation[idx] = not show_trans
                         st.rerun()
@@ -597,9 +611,6 @@ else:
                 st.markdown(f'<div class="assistant-message">{content}</div>', unsafe_allow_html=True)
             
             st.markdown('<div style="clear:both;"></div>', unsafe_allow_html=True)
-        
-        if (idx + 1) % 4 == 0 and idx < len(st.session_state.messages) - 1:
-            st.markdown(f'<div class="message-time">{datetime.now().strftime("%p %I:%M")}</div>', unsafe_allow_html=True)
     
     if st.session_state.is_loading:
         st.markdown("""
@@ -615,7 +626,26 @@ else:
 
 st.markdown('</div>', unsafe_allow_html=True)
 
-# 중국어 상세 분석
+# 입력 영역 - 한 줄로 배치
+st.markdown('<div class="input-container"><div class="input-wrapper">', unsafe_allow_html=True)
+
+col1, col2 = st.columns([10, 1])
+
+with col1:
+    user_input = st.text_input(
+        "message",
+        placeholder=f"{current_lang['name']}로 입력...",
+        key="user_input",
+        label_visibility="collapsed",
+        disabled=st.session_state.is_loading
+    )
+
+with col2:
+    send_button = st.button("↑", use_container_width=True, type="primary", disabled=st.session_state.is_loading or not user_input.strip())
+
+st.markdown('</div></div>', unsafe_allow_html=True)
+
+# 중국어 상세 분석 (입력창 아래로 이동)
 if st.session_state.selected_language == 'chinese' and st.session_state.detailed_analysis:
     st.markdown('<div class="analysis-panel">', unsafe_allow_html=True)
     
@@ -627,14 +657,14 @@ if st.session_state.selected_language == 'chinese' and st.session_state.detailed
         if analysis.get('pinyin'):
             st.markdown(f"""
             <div class="analysis-section">
-                <div class="analysis-label">병음</div>
+                <div class="analysis-label">拼音 (병음)</div>
                 <div class="pinyin-box">{analysis['pinyin']}</div>
             </div>
             """, unsafe_allow_html=True)
         
         if analysis.get('words'):
             st.markdown('<div class="analysis-section">', unsafe_allow_html=True)
-            st.markdown('<div class="analysis-label">단어</div>', unsafe_allow_html=True)
+            st.markdown('<div class="analysis-label">词汇 (단어)</div>', unsafe_allow_html=True)
             for word in analysis['words']:
                 st.markdown(f"""
                 <div class="word-item">
@@ -650,14 +680,14 @@ if st.session_state.selected_language == 'chinese' and st.session_state.detailed
         if analysis.get('grammar'):
             st.markdown(f"""
             <div class="analysis-section">
-                <div class="analysis-label">문법</div>
+                <div class="analysis-label">语法 (문법)</div>
                 <div class="grammar-box">{analysis['grammar']}</div>
             </div>
             """, unsafe_allow_html=True)
         
         if analysis.get('vocabulary'):
             st.markdown('<div class="analysis-section">', unsafe_allow_html=True)
-            st.markdown('<div class="analysis-label">어휘 노트</div>', unsafe_allow_html=True)
+            st.markdown('<div class="analysis-label">词汇笔记 (어휘 노트)</div>', unsafe_allow_html=True)
             vocab_text = "<br>".join([f"• {v}" for v in analysis['vocabulary']])
             st.markdown(f'<div class="vocabulary-box">{vocab_text}</div>', unsafe_allow_html=True)
             st.markdown('</div>', unsafe_allow_html=True)
@@ -665,7 +695,7 @@ if st.session_state.selected_language == 'chinese' and st.session_state.detailed
         if analysis.get('notes'):
             st.markdown(f"""
             <div class="analysis-section">
-                <div class="analysis-label">추가 설명</div>
+                <div class="analysis-label">附加说明 (추가 설명)</div>
                 <div class="notes-box">{analysis['notes']}</div>
             </div>
             """, unsafe_allow_html=True)
@@ -673,25 +703,6 @@ if st.session_state.selected_language == 'chinese' and st.session_state.detailed
         st.markdown('</div>', unsafe_allow_html=True)
     
     st.markdown('</div>', unsafe_allow_html=True)
-
-# 입력 영역
-st.markdown('<div class="input-container">', unsafe_allow_html=True)
-
-col1, col2 = st.columns([4, 1])
-
-with col1:
-    user_input = st.text_input(
-        "message",
-        placeholder=f"{current_lang['name']}로 입력...",
-        key="user_input",
-        label_visibility="collapsed",
-        disabled=st.session_state.is_loading
-    )
-
-with col2:
-    send_button = st.button("발송", use_container_width=True, type="primary", disabled=st.session_state.is_loading or not user_input.strip())
-
-st.markdown('</div>', unsafe_allow_html=True)
 
 # 메시지 전송
 if send_button and user_input.strip():
