@@ -20,14 +20,27 @@ st.markdown("""
         background-color: #ededed;
     }
     
+    /* Streamlit 기본 헤더 숨김 */
+    header[data-testid="stHeader"] {
+        display: none;
+    }
+    
+    /* 상단 여백 제거 */
+    .block-container {
+        padding-top: 0rem !important;
+        padding-bottom: 0;
+    }
+    
     /* 헤더 - WeChat 그린 */
     .header {
         background: linear-gradient(135deg, #09b83e 0%, #07a33a 100%);
         color: white;
         padding: 1rem;
         border-radius: 0;
-        margin: -1rem -1rem 0.5rem -1rem;
+        margin: -1rem -1rem 0rem -1rem;
         box-shadow: 0 1px 3px rgba(0,0,0,0.12);
+        position: relative;
+        z-index: 999;
     }
     
     .header-title {
@@ -214,18 +227,11 @@ st.markdown("""
         background: #f7f7f7;
         border-top: 1px solid #d9d9d9;
         padding: 0.625rem 1rem;
-        margin: 0.5rem -1rem 0 -1rem;
+        margin: 0.5rem -1rem -1rem -1rem;
     }
     
     /* 입력창과 버튼을 한 줄로 배치 */
-    .input-row {
-        display: flex;
-        gap: 0.5rem;
-        align-items: center;
-    }
-    
     .stTextInput {
-        flex: 1;
         margin-bottom: 0 !important;
     }
     
@@ -300,6 +306,7 @@ st.markdown("""
     /* 사이드바 - WeChat 스타일 */
     [data-testid="stSidebar"] {
         background: #fafafa;
+        z-index: 998;
     }
     
     [data-testid="stSidebar"] .stSelectbox > div > div {
@@ -364,7 +371,7 @@ st.markdown("""
     /* 빈 화면 안내 */
     .empty-state {
         text-align: center;
-        padding: 3rem 1rem;
+        padding: 2rem 1rem;
     }
     
     .empty-icon {
@@ -447,15 +454,14 @@ st.markdown("""
         margin: 1rem 0;
     }
     
-    /* 불필요한 여백 제거 */
-    .block-container {
-        padding-top: 1rem;
-        padding-bottom: 0;
-    }
-    
     /* 텍스트 입력 여백 제거 */
     .stTextInput > label {
         display: none;
+    }
+    
+    /* 컬럼 간격 조정 */
+    [data-testid="column"] {
+        padding: 0 !important;
     }
 </style>
 """, unsafe_allow_html=True)
@@ -674,7 +680,7 @@ else:
 st.markdown('</div>', unsafe_allow_html=True)
 
 # 입력 영역
-st.markdown('<div class="input-container"><div class="input-row">', unsafe_allow_html=True)
+st.markdown('<div class="input-container">', unsafe_allow_html=True)
 
 col1, col2 = st.columns([10, 1])
 
@@ -690,7 +696,7 @@ with col1:
 with col2:
     send_button = st.button("↑", use_container_width=True, type="primary", disabled=st.session_state.is_loading or not user_input.strip(), key="send_btn")
 
-st.markdown('</div></div>', unsafe_allow_html=True)
+st.markdown('</div>', unsafe_allow_html=True)
 
 # 중국어 상세 분석 (입력창 아래로 이동)
 if st.session_state.selected_language == 'chinese' and st.session_state.detailed_analysis:
@@ -746,6 +752,8 @@ if st.session_state.selected_language == 'chinese' and st.session_state.detailed
             st.markdown(vocab_html, unsafe_allow_html=True)
             st.markdown('</div>', unsafe_allow_html=True)
         
+        # 위 코드는 그대로 유지하고, 아래 부분만 교체하세요
+
         if analysis.get('notes'):
             st.markdown(f"""
             <div class="analysis-section">
@@ -753,27 +761,84 @@ if st.session_state.selected_language == 'chinese' and st.session_state.detailed
                 <div class="notes-box">
                     <div style="color: #333; margin-bottom: 0.25rem;">{analysis['notes']}</div>
                     <div style="color: #666; font-size: 0.75rem; margin-top: 0.375rem; padding-top: 0.375rem; border-top: 1px solid #fde68a;">
-                    [한글] 표준 중국어 인사말로, 처음 만날때 사용하기 적합합니다.</div>
-                    </div>
-                    </div>
-                    """, unsafe_allow_html=True)
-            # 사용자 피드백 추가
-    if analysis.get('feedback'):
-        st.markdown(f"""
-        <div class="analysis-section">
-            <div class="analysis-label">您的反馈 (사용자 피드백)</div>
-            <div class="feedback-box">
-                <div style="margin-bottom: 0.5rem;"><strong>表现 (표현):</strong> {analysis['feedback'].get('expression', 'N/A')}</div>
-                <div style="color: #666; font-size: 0.75rem; margin-left: 1rem; margin-bottom: 0.75rem;">[한글] 자연스러운 표현을 사용하셨습니다</div>
-                
-                <div style="margin-bottom: 0.5rem;"><strong>语法 (문법):</strong> {analysis['feedback'].get('grammar', 'N/A')}</div>
-                <div style="color: #666; font-size: 0.75rem; margin-left: 1rem; margin-bottom: 0.75rem;">[한글] 문법이 정확합니다</div>
-                
-                <div style="margin-bottom: 0.5rem;"><strong>语境 (맥락):</strong> {analysis['feedback'].get('context', 'N/A')}</div>
-                <div style="color: #666; font-size: 0.75rem; margin-left: 1rem; margin-bottom: 0.75rem;">[한글] 상황에 적절한 표현입니다</div>
-                
-                <div style="margin-bottom: 0.5rem;"><strong>单词选择 (단어 선택):</strong> {analysis['feedback'].get('word_choice', 'N/A')}</div>
-                <div style="color: #666; font-size: 0.75rem; margin-left: 1rem;">[한글] 적절한 어휘를 선택하셨습니다</div>
+                    [한글] 표준 중국어 인사말로, 처음 만날 때 사용하기 적합합니다.</div>
+                </div>
             </div>
-        </div>
-        """, unsafe_allow_html=True)
+            """, unsafe_allow_html=True)
+        
+        # 사용자 피드백 추가
+        if analysis.get('feedback'):
+            st.markdown(f"""
+            <div class="analysis-section">
+                <div class="analysis-label">您的反馈 (사용자 피드백)</div>
+                <div class="feedback-box">
+                    <div style="margin-bottom: 0.5rem;"><strong>表现 (표현):</strong> {analysis['feedback'].get('expression', 'N/A')}</div>
+                    <div style="color: #666; font-size: 0.75rem; margin-left: 1rem; margin-bottom: 0.75rem;">[한글] 자연스러운 표현을 사용하셨습니다</div>
+                    
+                    <div style="margin-bottom: 0.5rem;"><strong>语法 (문법):</strong> {analysis['feedback'].get('grammar', 'N/A')}</div>
+                    <div style="color: #666; font-size: 0.75rem; margin-left: 1rem; margin-bottom: 0.75rem;">[한글] 문법이 정확합니다</div>
+                    
+                    <div style="margin-bottom: 0.5rem;"><strong>语境 (맥락):</strong> {analysis['feedback'].get('context', 'N/A')}</div>
+                    <div style="color: #666; font-size: 0.75rem; margin-left: 1rem; margin-bottom: 0.75rem;">[한글] 상황에 적절한 표현입니다</div>
+                    
+                    <div style="margin-bottom: 0.5rem;"><strong>单词选择 (단어 선택):</strong> {analysis['feedback'].get('word_choice', 'N/A')}</div>
+                    <div style="color: #666; font-size: 0.75rem; margin-left: 1rem;">[한글] 적절한 어휘를 선택하셨습니다</div>
+                </div>
+            </div>
+            """, unsafe_allow_html=True)
+
+# 메시지 전송 처리
+if send_button and user_input and user_input.strip():
+    # 사용자 메시지 추가
+    st.session_state.messages.append({
+        'role': 'user',
+        'content': user_input
+    })
+    
+    # 로딩 시작
+    st.session_state.is_loading = True
+    st.rerun()
+
+# 로딩 후 응답 생성
+if st.session_state.is_loading:
+    if len(st.session_state.messages) > 0 and st.session_state.messages[-1]['role'] == 'user':
+        time.sleep(1)
+        
+        # 사용자 목표를 포함한 프롬프트 생성
+        goals_text = ", ".join(st.session_state.goals) if st.session_state.goals else "기초 회화"
+        user_msg = st.session_state.messages[-1]['content']
+        
+        assistant_message = {
+            'role': 'assistant',
+            'content': f'你好！很高兴认识你。今天想聊什么？\n\n我注意到你的学习目标是：{goals_text}。我会根据这些目标来调整我的回答。'
+        }
+        
+        st.session_state.messages.append(assistant_message)
+        
+        if st.session_state.selected_language == 'chinese':
+            # 사용자 메시지 피드백 생성
+            st.session_state.detailed_analysis = {
+                'pinyin': 'nǐ hǎo! hěn gāoxìng rènshi nǐ. jīntiān xiǎng liáo shénme?',
+                'words': [
+                    {'chinese': '你好', 'pinyin': 'nǐ hǎo', 'meaning': '안녕하세요'},
+                    {'chinese': '很', 'pinyin': 'hěn', 'meaning': '매우'},
+                    {'chinese': '高兴', 'pinyin': 'gāoxìng', 'meaning': '기쁘다'},
+                    {'chinese': '认识', 'pinyin': 'rènshi', 'meaning': '알다, 만나다'},
+                    {'chinese': '今天', 'pinyin': 'jīntiān', 'meaning': '오늘'},
+                    {'chinese': '想', 'pinyin': 'xiǎng', 'meaning': '~하고 싶다'},
+                    {'chinese': '聊', 'pinyin': 'liáo', 'meaning': '이야기하다'},
+                    {'chinese': '什么', 'pinyin': 'shénme', 'meaning': '무엇'}
+                ],
+                'grammar': "这是一个简单的问候句。'很高兴认识你' 是固定搭配，表示见面时的礼貌用语。",
+                'vocabulary': ["'认识' 是HSK 3级词汇，表示认识某人", "'聊' 是口语中常用的动词"],
+                'notes': "这是标准的中文问候语，适合初次见面使用。",
+                'feedback': {
+                    'expression': f"您说的'{user_msg}'很自然！",
+                    'grammar': "语法结构正确，使用了合适的时态和语序。",
+                    'context': "在这种情况下使用这个表达非常合适。",
+                    'word_choice': "词汇选择恰当，符合中文母语者的表达习惯。"
+                }
+            }
+        
+        st.session_state.is_loading = False
+        st.rerun()
