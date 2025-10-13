@@ -57,7 +57,7 @@ st.markdown("""
     /* 메시지 영역 배경 */
     .messages-container {
         background: #ededed;
-        min-height: 450px;
+        min-height: 0px;
         max-height: 550px;
         overflow-y: auto;
         padding: 0.25rem 1rem 1rem 1rem !important; 
