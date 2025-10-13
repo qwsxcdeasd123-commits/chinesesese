@@ -1,8 +1,8 @@
 # -*- coding: utf-8 -*-
 """
-Streamlit MobileLanguageTutor — WeChat 스타일 풀버전
-기능 유지: 언어/수준 선택, 목표 표시, 번역 토글, 중국어 상세 분석, 대화 저장, 타이핑 인디케이터
-개선: 모바일에서 사이드바(드로어) 이모지 버튼/상단 ⋯ 버튼으로 열고 닫기, Anthropic 스트리밍 오류 폴백
+Streamlit MobileLanguageTutor — WeChat 스타일 풀버전 (Anthropic 시스템 롤 수정)
+기능: 언어/수준 선택, 목표 표시, 번역 토글, 중국어 상세 분석, 대화 저장, 타이핑 인디케이터
+개선: 이모지/상단 ⋯ 버튼으로 드로어 토글, Anthropic 스트리밍/비스트리밍 폴백, 안전 인덱싱
 Python 3.10+ / Streamlit 1.33+
 옵션: openai>=1.40.0, anthropic>=0.34.0
 """
@@ -59,6 +59,19 @@ def _has_anthropic():
     except Exception:
         return False
 
+def _split_system_and_messages(messages: T.List[dict]):
+    """Anthropic 전용: system 프롬프트와 user/assistant만 분리."""
+    system_prompt = ""
+    filtered = []
+    for m in messages:
+        role = m.get("role")
+        if role == "system" and not system_prompt:
+            system_prompt = m.get("content", "")
+        elif role in ("user", "assistant"):
+            filtered.append({"role": role, "content": m.get("content", "")})
+        # 기타 롤은 무시
+    return system_prompt, filtered
+
 def stream_reply(messages: T.List[dict], temperature: float = 0.2, max_tokens: int = 400):
     """
     채팅 응답 스트리밍(선택: OpenAI/Anthropic). 없으면 mock.
@@ -89,28 +102,35 @@ def stream_reply(messages: T.List[dict], temperature: float = 0.2, max_tokens: i
             return
         except Exception:
             # 비스트리밍 폴백
-            resp = client.chat.completions.create(
-                model=model,
-                messages=messages,
-                temperature=temperature,
-                max_tokens=max_tokens,
-                stream=False,
-            )
-            text = resp.choices[0].message.content or ""
-            if text:
-                yield text
-                return
+            try:
+                resp = client.chat.completions.create(
+                    model=model,
+                    messages=messages,
+                    temperature=temperature,
+                    max_tokens=max_tokens,
+                    stream=False,
+                )
+                text = (resp.choices[0].message.content or "").strip()
+                if text:
+                    yield text
+                    return
+            except Exception:
+                pass  # mock 폴백 진행
 
     if provider == "anthropic":
         import anthropic
         client = anthropic.Anthropic()
         model = os.environ.get("ANTHROPIC_MODEL", "claude-3-5-sonnet-latest")
+
+        system_prompt, filtered = _split_system_and_messages(messages)
+
         try:
             with client.messages.stream(
                 model=model,
                 max_tokens=max_tokens,
                 temperature=temperature,
-                messages=[{"role": m["role"], "content": m["content"]} for m in messages],
+                system=system_prompt or None,
+                messages=filtered,
             ) as s:
                 for text in s.text_stream:
                     if text:
@@ -123,14 +143,15 @@ def stream_reply(messages: T.List[dict], temperature: float = 0.2, max_tokens: i
                     model=model,
                     max_tokens=max_tokens,
                     temperature=temperature,
-                    messages=[{"role": m["role"], "content": m["content"]} for m in messages],
+                    system=system_prompt or None,
+                    messages=filtered,
                 )
                 text = "".join([b.text for b in resp.content if hasattr(b, "text")]).strip()
                 if text:
                     yield text
                     return
             except Exception:
-                pass  # 최종 mock 폴백으로 진행
+                pass  # mock 폴백 진행
 
     # mock
     user_last = next((m["content"] for m in reversed(messages) if m["role"] == "user"), "")
@@ -140,9 +161,7 @@ def stream_reply(messages: T.List[dict], temperature: float = 0.2, max_tokens: i
         time.sleep(0.01)
 
 def translate_to_korean(text: str, source_lang_name: str) -> str:
-    """
-    보조 기능: 어시스턴트 메시지를 한국어 번역(요청 시). 백엔드 없으면 간단 치환.
-    """
+    """어시스턴트 메시지 한국어 번역. 백엔드 없으면 간단 치환."""
     provider = "mock"
     if _has_openai():
         provider = "openai"
@@ -179,13 +198,10 @@ def translate_to_korean(text: str, source_lang_name: str) -> str:
         except Exception:
             return "(번역 실패)"
 
-    # mock
     return f"(번역-모의) {text}"
 
 def analyze_chinese_json(text: str) -> dict:
-    """
-    중국어 상세 분석(JSON). 백엔드 없으면 예시 구조 반환.
-    """
+    """중국어 상세 분석(JSON). 백엔드 없으면 예시 구조 반환."""
     provider = "mock"
     if _has_openai():
         provider = "openai"
@@ -238,8 +254,10 @@ def analyze_chinese_json(text: str) -> dict:
 텍스트: {text}
 """
         try:
-            r = client.messages.create(model=model, max_tokens=700, temperature=0.1,
-                                       messages=[{"role":"user","content": user}])
+            r = client.messages.create(
+                model=model, max_tokens=700, temperature=0.1,
+                messages=[{"role":"user","content": user}],
+            )
             raw = "".join([b.text for b in r.content if hasattr(b, "text")]).strip()
             raw = raw.replace("```json", "").replace("```", "").strip()
             return json.loads(raw)
@@ -275,8 +293,7 @@ def ensure_state():
     st.session_state.setdefault("isLoading", False)
     st.session_state.setdefault("detailedAnalysis", None)
     st.session_state.setdefault("showAnalysis", False)
-    # 드로어 표시 상태(모바일에서 닫았다가 다시 열기)
-    st.session_state.setdefault("showDrawer", True)
+    st.session_state.setdefault("showDrawer", True)  # 드로어 표시 상태
 
 def add_message(role: str, content: str):
     st.session_state.messages.append({
@@ -510,12 +527,11 @@ def render_message(msg: dict, idx: int, selected_lang_key: str):
         unsafe_allow_html=True,
     )
 
-    # 번역 토글 버튼
+    # 번역 토글 버튼(안전 인덱싱)
     if msg["role"] == "assistant":
         col1, _, _ = st.columns([1,2,12])
         with col1:
             if st.button("번역", key=f"tr_{idx}"):
-                # 안전 인덱싱 및 예외 처리
                 if 0 <= idx < len(st.session_state.messages):
                     try:
                         if st.session_state.messages[idx].get("translation"):
@@ -569,109 +585,4 @@ def main():
             f"""
 <div style="text-align:center; padding:40px 0; color:#666;">
   <div style="font-size:64px; line-height:1.0;">{flag}</div>
-  <div style="font-size:16px; margin-top:8px; font-weight:600;">{label} 학습 시작</div>
-  <div style="font-size:13px; margin-top:6px;">메시지를 입력하십시오.</div>
-</div>
-            """,
-            unsafe_allow_html=True,
-        )
-
-    # 메시지 렌더
-    for i, m in enumerate(st.session_state.messages):
-        render_message(m, i, st.session_state.selectedLanguage)
-
-    # 로딩 시 인디케이터
-    if st.session_state.isLoading:
-        typing_indicator()
-
-    st.markdown('</div>', unsafe_allow_html=True)  # .chat
-
-    # 입력 바
-    with st.container():
-        c1, c2, c3 = st.columns([8, 1, 1])
-        user_text = c1.text_input(
-            "", value=st.session_state.input, label_visibility="collapsed",
-            placeholder=f"{LANGUAGES[st.session_state.selectedLanguage]['name']}로 입력..."
-        )
-        emoji_btn = c2.button("🙂", use_container_width=True, key="emoji_toggle")
-        send_btn  = c3.button("⮕", use_container_width=True)
-
-        if emoji_btn:
-            st.session_state.showDrawer = not st.session_state.showDrawer
-
-    st.markdown('</div>', unsafe_allow_html=True)  # .phone
-
-    # 드로어 렌더
-    if st.session_state.showDrawer:
-        # 오버레이
-        st.markdown("<div class='drawer-overlay'></div>", unsafe_allow_html=True)
-        # 드로어 박스
-        st.markdown("<div class='drawer'>", unsafe_allow_html=True)
-        # 헤더
-        h1, h2 = st.columns([4,1])
-        with h1:
-            st.markdown("<div class='drawer-header'>설정/분석</div>", unsafe_allow_html=True)
-        with h2:
-            if st.button("닫기", key="drawer_close"):
-                st.session_state.showDrawer = False
-        # 바디
-        st.markdown("<div class='drawer-body'>", unsafe_allow_html=True)
-        render_sidebar_content_in(st)
-        st.markdown("</div>", unsafe_allow_html=True)   # drawer-body
-        st.markdown("</div>", unsafe_allow_html=True)   # drawer
-
-    # 전송 처리
-    if send_btn and user_text.strip() and not st.session_state.isLoading:
-        st.session_state.input = ""
-        st.session_state.isLoading = True
-        add_message("user", user_text.strip())
-
-        # 모델 메시지
-        sys_prompt = (
-            "You are a concise, corrective language partner. "
-            "Reply in the target language. Keep responses short (<= 3 sentences)."
-        )
-        msgs = [{"role":"system","content": sys_prompt}]
-        for m in st.session_state.messages:
-            msgs.append({"role": m["role"], "content": m["content"]})
-
-        # 스트리밍 표출
-        acc = ""
-        ph = st.empty()
-        with st.spinner("응답 생성 중…"):
-            for chunk in stream_reply(msgs, temperature=0.2, max_tokens=400):
-                acc += chunk
-                safe_acc = acc.replace("&","&amp;").replace("<","&lt;").replace(">", "&gt;")
-                ph.markdown(
-                    f"""
-<div class="row left">
-  <div class="avatar">🧑‍🏫</div>
-  <div>
-    <div class="bubble bot">{safe_acc}</div>
-    <div class="meta">{datetime.now().strftime("%Y-%m-%d %H:%M")}</div>
-  </div>
-</div>
-                    """,
-                    unsafe_allow_html=True
-                )
-                time.sleep(0.001)
-
-        ph.empty()
-        add_message("assistant", acc.strip())
-
-        # 중국어 자동 분석
-        if st.session_state.selectedLanguage == "chinese":
-            try:
-                st.session_state.detailedAnalysis = analyze_chinese_json(user_text.strip())
-                st.session_state.showAnalysis = True
-            except Exception:
-                st.session_state.detailedAnalysis = None
-                st.session_state.showAnalysis = False
-
-        st.session_state.isLoading = False
-        st.rerun()
-    else:
-        st.session_state.input = user_text
-
-if __name__ == "__main__":
-    main()
+  <div style="font-size:16px; margin-top:
