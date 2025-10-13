@@ -8,7 +8,7 @@ st.set_page_config(
     page_title="语言学习",
     page_icon="💬",
     layout="wide",
-    initial_sidebar_state="collapsed"
+    initial_sidebar_state="expanded"
 )
 
 # WeChat 스타일 CSS
@@ -20,9 +20,43 @@ st.markdown("""
         max-width: 100%;
     }
     
+    /* 모바일 반응형 */
+    @media (max-width: 768px) {
+        [data-testid="stSidebar"] {
+            display: none !important;
+        }
+        
+        .wechat-header {
+            margin: 0 !important;
+            padding: 12px 15px !important;
+        }
+        
+        .main .block-container {
+            padding: 1rem !important;
+            max-width: 100% !important;
+        }
+    }
+    
     /* 헤더 숨기기 */
     header {visibility: hidden;}
     .stDeployButton {display: none;}
+    
+    /* 사이드바 항상 표시 및 스타일 */
+    [data-testid="stSidebar"] {
+        background-color: #f7f7f7;
+        border-right: 2px solid #d0d0d0;
+        min-width: 280px;
+        max-width: 320px;
+    }
+    
+    [data-testid="stSidebar"] > div:first-child {
+        background-color: #f7f7f7;
+    }
+    
+    /* 사이드바 닫기 버튼 숨기기 */
+    [data-testid="collapsedControl"] {
+        display: none;
+    }
     
     /* WeChat 헤더 */
     .wechat-header {
@@ -30,16 +64,15 @@ st.markdown("""
         color: white;
         padding: 15px 20px;
         border-radius: 0;
-        margin: -80px -100px 20px -100px;
+        margin: -1rem -1rem 1rem -1rem;
         box-shadow: 0 2px 4px rgba(0,0,0,0.1);
     }
     
-    /* 메시지 컨테이너 */
-    .message-container {
-        padding: 10px 15px;
-        margin: 5px 0;
-        display: flex;
-        align-items: flex-start;
+    /* 메인 컨테이너 */
+    .main .block-container {
+        padding-top: 2rem;
+        padding-bottom: 5rem;
+        max-width: 100%;
     }
     
     /* 사용자 메시지 - WeChat 녹색 */
@@ -48,15 +81,15 @@ st.markdown("""
         color: #000;
         padding: 10px 14px;
         border-radius: 8px;
-        margin: 8px 60px 8px 0;
+        margin: 8px 10px 8px auto;
         text-align: left;
         position: relative;
         word-wrap: break-word;
         font-size: 16px;
         line-height: 1.5;
         box-shadow: 0 1px 2px rgba(0,0,0,0.1);
-        margin-left: auto;
         max-width: 70%;
+        display: inline-block;
     }
     
     .user-message::before {
@@ -77,7 +110,7 @@ st.markdown("""
         color: #000;
         padding: 10px 14px;
         border-radius: 8px;
-        margin: 8px 0 8px 60px;
+        margin: 8px auto 8px 10px;
         text-align: left;
         position: relative;
         word-wrap: break-word;
@@ -85,6 +118,7 @@ st.markdown("""
         line-height: 1.5;
         box-shadow: 0 1px 2px rgba(0,0,0,0.1);
         max-width: 70%;
+        display: inline-block;
     }
     
     .assistant-message::before {
@@ -104,12 +138,13 @@ st.markdown("""
         width: 40px;
         height: 40px;
         border-radius: 6px;
-        margin: 0 10px;
+        margin: 0 8px;
         font-size: 20px;
         display: flex;
         align-items: center;
         justify-content: center;
         background-color: #d0d0d0;
+        flex-shrink: 0;
     }
     
     /* 번역 텍스트 */
@@ -165,17 +200,22 @@ st.markdown("""
         font-size: 16px;
     }
     
-    /* 사이드바 - WeChat 스타일 */
-    [data-testid="stSidebar"] {
-        background-color: #f7f7f7;
-    }
-    
-    /* 입력 영역 배경 */
+    /* 입력 영역 */
     .input-area {
         background-color: #f7f7f7;
-        padding: 10px 15px;
+        padding: 10px;
         border-top: 1px solid #d0d0d0;
-        margin: 0 -100px -80px -100px;
+        position: fixed;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        z-index: 100;
+    }
+    
+    @media (min-width: 769px) {
+        .input-area {
+            left: 320px;
+        }
     }
     
     /* Expander - WeChat 스타일 */
@@ -191,10 +231,10 @@ st.markdown("""
 if 'messages' not in st.session_state:
     st.session_state.messages = []
 if 'api_key' not in st.session_state:
-    # Secrets에서 API 키 가져오기 시도
+    # Secrets에서 API 키 가져오기
     try:
-        st.session_state.api_key = st.secrets.get("ANTHROPIC_API_KEY", "")
-    except:
+        st.session_state.api_key = st.secrets["ANTHROPIC_API_KEY"]
+    except Exception as e:
         st.session_state.api_key = ""
 if 'language' not in st.session_state:
     st.session_state.language = 'chinese'
@@ -502,6 +542,8 @@ else:
                     st.markdown(f"• {note}")
     
     # 입력 영역
+    st.markdown("<div style='height: 80px;'></div>", unsafe_allow_html=True)  # 입력창 공간 확보
+    
     st.markdown("<div class='input-area'>", unsafe_allow_html=True)
     col1, col2 = st.columns([6, 1])
     
