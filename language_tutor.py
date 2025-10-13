@@ -69,7 +69,7 @@ st.markdown("""
     }
     /* 튜터 말풍선 — 여백/패딩 더 축소 */
     .assistant-message {
-        background: #fff; color: #000; padding: 0.25rem 0.5rem !important; border-radius: 0.375rem;
+        background: #fff; color: #000; padding: 0.2rem 0.2rem !important; border-radius: 0.375rem;
         margin: 0.1rem 0 !important; margin-right: auto; max-width: 70%; float: left; clear: both;
         box-shadow: none !important; cursor: pointer; word-wrap: break-word; font-size: 0.875rem !important;
         line-height: 1.25 !important; white-space: pre-wrap;
@@ -108,15 +108,15 @@ st.markdown("""
     .analysis-content { padding: 1rem; background: #fff; }
     .analysis-section { margin-bottom: 1rem; }
     .analysis-label { font-size: 0.75rem; color: #999; margin-bottom: 0.375rem; font-weight: 500; }
-    .pinyin-box { background: #f0f9ff; padding: 0.625rem; border-radius: 0.25rem; color: #1e40af; font-size: 0.8rem; border: 1px solid #bfdbfe; line-height: 1.5; }
-    .word-item { background: #fafafa; border: 1px solid #e5e5e5; border-radius: 0.25rem; padding: 0.5rem; margin: 0.375rem 0; font-size: 0.8rem; }
-    .word-chinese { font-weight: 600; font-size: 0.8rem; color: #000; }
+    .pinyin-box { background: #f0f9ff; padding: 0.625rem; border-radius: 0.25rem; color: #1e40af; font-size: 0.75rem; border: 1px solid #bfdbfe; line-height: 1.5; }
+    .word-item { background: #fafafa; border: 1px solid #e5e5e5; border-radius: 0.25rem; padding: 0.5rem; margin: 0.375rem 0; font-size: 0.75rem; }
+    .word-chinese { font-weight: 600; font-size: 0.75rem; color: #000; }
     .word-pinyin { color: #09b83e; margin-left: 0.375rem; }
-    .word-meaning { color: #666; margin-top: 0.25rem; font-size: 0.8rem; }
+    .word-meaning { color: #666; margin-top: 0.25rem; font-size: 0.75rem; }
 
-    .grammar-box { background: #fef9e7; padding: 0.625rem; border-radius: 0.25rem; font-size: 0.8125rem; color: #333; border: 1px solid #fde68a; line-height: 1.5; }
-    .vocabulary-box { background: #f0fdf4; padding: 0.625rem; border-radius: 0.25rem; font-size: 0.8125rem; color: #333; border: 1px solid #bbf7d0; line-height: 1.5; }
-    .notes-box { background: #fff7e6; padding: 0.625rem; border-radius: 0.25rem; font-size: 0.8125rem; color: #333; border: 1px dashed #f5c97a; line-height: 1.5; }
+    .grammar-box { background: #fef9e7; padding: 0.625rem; border-radius: 0.25rem; font-size: 0.75rem; color: #333; border: 1px solid #fde68a; line-height: 1.5; }
+    .vocabulary-box { background: #f0fdf4; padding: 0.625rem; border-radius: 0.25rem; font-size: 0.75rem; color: #333; border: 1px solid #bbf7d0; line-height: 1.5; }
+    .notes-box { background: #fff7e6; padding: 0.625rem; border-radius: 0.25rem; font-size: 0.75rem; color: #333; border: 1px dashed #f5c97a; line-height: 1.5; }
 
     /* 피드백 박스(보라) */
     .feedback-box {
@@ -139,7 +139,7 @@ st.markdown("""
     .feedback-box,
     .analysis-section,
     .analysis-section * { 
-        font-size: 0.875rem !important;
+        font-size: 0.75rem !important;
         line-height: 1.5;
     }
     .gram-badge{
@@ -386,8 +386,9 @@ def _build_tutor_system_prompt(target_lang: str):
         "- 사실 기반으로만 답변하고 불확실한 내용은 '확인 불가' 명시.\n"
         "- 추측 금지, 간결·정확한 문장 사용.\n"
         "- 출력 언어: 사용자가 선택한 학습 언어로 답변.\n"
-        "- 첫 응답에서 학습 목표를 1회만 간략히 언급하고, 사용자 이름을 정중히 확인.\n"
+        "- 첫 응답에서 학습 목표를 1회만 간략히 언급하고, 사용자 이름을 친근히 확인.\n"
         "- 이후부터는 목표 재언급 금지, 저장된 사용자 이름이 있으면 존칭으로 호명.\n"
+        "- 친절한 친구와 같은 말투로 대화할 것.\n"
     )
 
 def _history_for_anthropic():
