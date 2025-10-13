@@ -20,11 +20,6 @@ st.markdown("""
         background-color: #ededed;
     }
     
-    /* 상단 여백 추가 */
-    .main > div:first-child {
-        padding-top: 2cm !important;
-    }
-    
     /* 블록 컨테이너 여백 최소화 */
     .block-container {
         padding-top: 0rem !important;
