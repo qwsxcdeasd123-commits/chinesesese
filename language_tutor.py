@@ -22,7 +22,7 @@ st.markdown("""
     
     /* 상단 여백 추가 */
     .main > div:first-child {
-        padding-top: 1cm !important;
+        padding-top: 2cm !important;
     }
     
     /* 블록 컨테이너 여백 최소화 */
@@ -111,6 +111,22 @@ st.markdown("""
         border-top: 1px solid #e5e5e5;
         line-height: 1.3;
     }
+
+    # CSS 부분에 추가
+"""
+    /* 메시지 토글 버튼 완전히 숨김 */
+    .stButton > button:not([kind="primary"]) {
+        position: absolute !important;
+        width: 1px !important;
+        height: 1px !important;
+        padding: 0 !important;
+        margin: -1px !important;
+        overflow: hidden !important;
+        clip: rect(0, 0, 0, 0) !important;
+        white-space: nowrap !important;
+        border: 0 !important;
+    }
+"""
     
     .translation-toggle {
         color: #586c94;
@@ -630,6 +646,8 @@ with st.sidebar:
             use_container_width=True
         )
 
+# 메시지 표시 영역 부분만 수정
+
 # 메시지 표시 영역
 st.markdown('<div class="messages-container">', unsafe_allow_html=True)
 
@@ -662,20 +680,23 @@ else:
                 <div class="translation-toggle">{toggle_text}</div>
                 """
             
-            # 메시지를 클릭 가능하게 만들기
-            st.markdown(f'<div class="assistant-message" onclick="window.location.reload()">{content}</div>', unsafe_allow_html=True)
-            
-            # 번역 토글 버튼 (보이지 않게)
-            if st.button(f"toggle_{idx}", key=f"msg_btn_{idx}"):
-                if 'translation' in msg:
-                    st.session_state.show_translation[idx] = not show_trans
-                elif not is_translating:
-                    st.session_state.translating_message_id = idx
-                    # 간단한 번역 (실제로는 API 호출)
-                    st.session_state.messages[idx]['translation'] = "안녕하세요! 만나서 반갑습니다. 오늘 무엇에 대해 이야기하고 싶으세요?"
-                    st.session_state.translating_message_id = None
-                    st.session_state.show_translation[idx] = True
-                st.rerun()
+            # 버튼을 메시지 영역 안에 숨김
+            col1, col2, col3 = st.columns([1, 20, 1])
+            with col2:
+                # 메시지 표시
+                st.markdown(f'<div class="assistant-message">{content}</div>', unsafe_allow_html=True)
+                
+                # 투명한 버튼으로 클릭 영역 생성
+                if st.button("　", key=f"msg_btn_{idx}", help="클릭하여 번역"):
+                    if 'translation' in msg:
+                        st.session_state.show_translation[idx] = not show_trans
+                    elif not is_translating:
+                        st.session_state.translating_message_id = idx
+                        # 간단한 번역
+                        st.session_state.messages[idx]['translation'] = "안녕하세요! 만나서 반갑습니다. 오늘 무엇에 대해 이야기하고 싶으세요? 당신의 학습 목표는 HSK 5급 필수 어휘 마스터, 복잡한 문장 구조 이해, 성어 및 관용 표현 학습입니다. 이러한 목표에 따라 답변을 조정하겠습니다."
+                        st.session_state.translating_message_id = None
+                        st.session_state.show_translation[idx] = True
+                    st.rerun()
             
             st.markdown('<div style="clear:both;"></div>', unsafe_allow_html=True)
     
