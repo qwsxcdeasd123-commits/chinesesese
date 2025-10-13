@@ -113,7 +113,7 @@ st.markdown("""
     }
 
     # CSS 부분에 추가
-"""
+    
     /* 메시지 토글 버튼 완전히 숨김 */
     .stButton > button:not([kind="primary"]) {
         position: absolute !important;
@@ -126,7 +126,6 @@ st.markdown("""
         white-space: nowrap !important;
         border: 0 !important;
     }
-"""
     
     .translation-toggle {
         color: #586c94;
