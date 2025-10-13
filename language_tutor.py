@@ -5,7 +5,7 @@ from datetime import datetime
 
 # 페이지 설정
 st.set_page_config(
-    page_title="微信语言学习",
+    page_title="Language Chat",
     page_icon="💬",
     layout="wide",
     initial_sidebar_state="collapsed"
@@ -26,7 +26,7 @@ st.markdown("""
         color: white;
         padding: 1rem;
         border-radius: 0;
-        margin: -1rem -1rem 0 -1rem;
+        margin: -1rem -1rem 0.5rem -1rem;
         box-shadow: 0 1px 3px rgba(0,0,0,0.12);
     }
     
@@ -114,7 +114,7 @@ st.markdown("""
         border-top: 1px solid #d9d9d9;
         border-bottom: 1px solid #d9d9d9;
         padding: 0;
-        margin: 1rem -1rem 0 -1rem;
+        margin: 0.5rem -1rem 0 -1rem;
     }
     
     .analysis-content {
@@ -140,6 +140,7 @@ st.markdown("""
         color: #1e40af;
         font-size: 0.875rem;
         border: 1px solid #bfdbfe;
+        line-height: 1.5;
     }
     
     .word-item {
@@ -198,16 +199,26 @@ st.markdown("""
         line-height: 1.5;
     }
     
+    .feedback-box {
+        background: #f3e8ff;
+        padding: 0.625rem;
+        border-radius: 0.25rem;
+        font-size: 0.8125rem;
+        color: #333333;
+        border: 1px solid #d8b4fe;
+        line-height: 1.5;
+    }
+    
     /* 입력 영역 - WeChat 스타일 */
     .input-container {
         background: #f7f7f7;
         border-top: 1px solid #d9d9d9;
         padding: 0.625rem 1rem;
-        margin: 1rem -1rem 0 -1rem;
+        margin: 0.5rem -1rem 0 -1rem;
     }
     
     /* 입력창과 버튼을 한 줄로 배치 */
-    .input-wrapper {
+    .input-row {
         display: flex;
         gap: 0.5rem;
         align-items: center;
@@ -215,6 +226,15 @@ st.markdown("""
     
     .stTextInput {
         flex: 1;
+        margin-bottom: 0 !important;
+    }
+    
+    .stTextInput > div {
+        margin-bottom: 0 !important;
+    }
+    
+    .stTextInput > div > div {
+        margin-bottom: 0 !important;
     }
     
     .stTextInput > div > div > input {
@@ -237,6 +257,10 @@ st.markdown("""
     }
     
     /* 전송 버튼 - 작고 둥글게 */
+    .stButton {
+        margin-bottom: 0 !important;
+    }
+    
     .stButton > button[kind="primary"] {
         background: #09b83e;
         color: white;
@@ -251,6 +275,7 @@ st.markdown("""
         align-items: center;
         justify-content: center;
         min-width: 2.5rem;
+        margin: 0;
     }
     
     .stButton > button[kind="primary"]:hover {
@@ -299,6 +324,20 @@ st.markdown("""
         margin: 0.5rem 0;
         font-size: 0.875rem;
         color: #353535;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+    
+    .goal-text {
+        flex: 1;
+    }
+    
+    .goal-delete {
+        color: #ef4444;
+        cursor: pointer;
+        font-size: 1rem;
+        padding: 0 0.5rem;
     }
     
     /* 로딩 애니메이션 - WeChat 스타일 */
@@ -421,6 +460,22 @@ st.markdown("""
         border-top: 1px solid #e5e5e5;
         margin: 1rem 0;
     }
+    
+    /* 불필요한 여백 제거 */
+    .block-container {
+        padding-top: 1rem;
+        padding-bottom: 0;
+    }
+    
+    /* 텍스트 입력 여백 제거 */
+    .stTextInput > label {
+        display: none;
+    }
+    
+    /* 목표 추가 입력창 */
+    .goal-input {
+        margin-top: 0.5rem;
+    }
 </style>
 """, unsafe_allow_html=True)
 
@@ -443,6 +498,8 @@ if 'translating_message_id' not in st.session_state:
     st.session_state.translating_message_id = None
 if 'goals' not in st.session_state:
     st.session_state.goals = []
+if 'new_goal' not in st.session_state:
+    st.session_state.new_goal = ""
 
 # 언어 정보
 languages = {
@@ -471,14 +528,14 @@ goals_by_language = {
 
 # 목표 초기화
 def initialize_goals():
-    st.session_state.goals = goals_by_language.get(
-        st.session_state.selected_language, 
-        ['기초 문법', '일상 어휘']
-    )
+    if not st.session_state.goals:
+        st.session_state.goals = goals_by_language.get(
+            st.session_state.selected_language, 
+            ['기초 문법', '일상 어휘']
+        )
 
 # 목표가 비어있으면 초기화
-if not st.session_state.goals:
-    initialize_goals()
+initialize_goals()
 
 # 헤더
 current_lang = languages[st.session_state.selected_language]
@@ -492,7 +549,7 @@ st.markdown(f"""
 <div class="header">
     <div class="header-title">
         <span>💬</span>
-        <span>언어 학습</span>
+        <span>Language Chat</span>
     </div>
     <div style="margin-top: 0.375rem; font-size: 0.8125rem; opacity: 0.95;">
         {current_lang['flag']} {current_lang['name']} · {proficiency_kr}
@@ -519,6 +576,7 @@ with st.sidebar:
         st.session_state.messages = []
         st.session_state.detailed_analysis = None
         st.session_state.show_translation = {}
+        st.session_state.goals = []
         initialize_goals()
         st.rerun()
     
@@ -534,8 +592,23 @@ with st.sidebar:
     
     # 학습 목표
     st.markdown("### 🎯 학습 목표")
-    for goal in st.session_state.goals:
-        st.markdown(f'<div class="goal-item">• {goal}</div>', unsafe_allow_html=True)
+    
+    # 기존 목표 표시 및 삭제
+    for idx, goal in enumerate(st.session_state.goals):
+        col1, col2 = st.columns([5, 1])
+        with col1:
+            st.markdown(f'<div class="goal-item"><div class="goal-text">• {goal}</div></div>', unsafe_allow_html=True)
+        with col2:
+            if st.button("×", key=f"del_goal_{idx}"):
+                st.session_state.goals.pop(idx)
+                st.rerun()
+    
+    # 새 목표 추가
+    new_goal_input = st.text_input("새 목표 추가", key="goal_input", placeholder="목표를 입력하세요...")
+    if st.button("➕ 추가", use_container_width=True):
+        if new_goal_input.strip():
+            st.session_state.goals.append(new_goal_input.strip())
+            st.rerun()
     
     st.markdown("---")
     
@@ -592,24 +665,20 @@ else:
                 <div class="translation-toggle">{toggle_text}</div>
                 """
             
-            # 메시지 클릭 처리
-            col1, col2, col3 = st.columns([0.5, 10, 0.5])
-            with col2:
-                if st.button(f"msg_{idx}", key=f"msg_btn_{idx}"):
-                    if 'translation' in msg:
-                        st.session_state.show_translation[idx] = not show_trans
-                        st.rerun()
-                    elif not is_translating:
-                        st.session_state.translating_message_id = idx
-                        st.rerun()
-                        time.sleep(1)
-                        st.session_state.messages[idx]['translation'] = f"[번역] {msg['content']}"
-                        st.session_state.translating_message_id = None
-                        st.session_state.show_translation[idx] = True
-                        st.rerun()
-                
-                st.markdown(f'<div class="assistant-message">{content}</div>', unsafe_allow_html=True)
+            # 메시지 클릭 처리 - 번역 토글
+            if st.button(f"msg_{idx}", key=f"msg_btn_{idx}"):
+                if 'translation' in msg:
+                    st.session_state.show_translation[idx] = not show_trans
+                    st.rerun()
+                elif not is_translating:
+                    st.session_state.translating_message_id = idx
+                    time.sleep(1)
+                    st.session_state.messages[idx]['translation'] = f"[번역] {msg['content']}"
+                    st.session_state.translating_message_id = None
+                    st.session_state.show_translation[idx] = True
+                    st.rerun()
             
+            st.markdown(f'<div class="assistant-message">{content}</div>', unsafe_allow_html=True)
             st.markdown('<div style="clear:both;"></div>', unsafe_allow_html=True)
     
     if st.session_state.is_loading:
@@ -626,8 +695,8 @@ else:
 
 st.markdown('</div>', unsafe_allow_html=True)
 
-# 입력 영역 - 한 줄로 배치
-st.markdown('<div class="input-container"><div class="input-wrapper">', unsafe_allow_html=True)
+# 입력 영역
+st.markdown('<div class="input-container"><div class="input-row">', unsafe_allow_html=True)
 
 col1, col2 = st.columns([10, 1])
 
@@ -641,18 +710,14 @@ with col1:
     )
 
 with col2:
-    send_button = st.button("↑", use_container_width=True, type="primary", disabled=st.session_state.is_loading or not user_input.strip())
+    send_button = st.button("↑", use_container_width=True, type="primary", disabled=st.session_state.is_loading or not user_input.strip(), key="send_btn")
 
 st.markdown('</div></div>', unsafe_allow_html=True)
 
 # 중국어 상세 분석 (입력창 아래로 이동)
 if st.session_state.selected_language == 'chinese' and st.session_state.detailed_analysis:
-    st.markdown('<div class="analysis-panel">', unsafe_allow_html=True)
-    
     with st.expander("📚 상세 분석", expanded=st.session_state.show_analysis):
         analysis = st.session_state.detailed_analysis
-        
-        st.markdown('<div class="analysis-content">', unsafe_allow_html=True)
         
         if analysis.get('pinyin'):
             st.markdown(f"""
@@ -681,67 +746,34 @@ if st.session_state.selected_language == 'chinese' and st.session_state.detailed
             st.markdown(f"""
             <div class="analysis-section">
                 <div class="analysis-label">语法 (문법)</div>
-                <div class="grammar-box">{analysis['grammar']}</div>
+                <div class="grammar-box">
+                    <div style="color: #333; margin-bottom: 0.25rem;">{analysis['grammar']}</div>
+                    <div style="color: #666; font-size: 0.75rem; margin-top: 0.375rem;">[한글] 간단한 인사 문장입니다. '很高兴认识你'는 고정 표현으로, 처음 만날 때 사용하는 예의바른 표현입니다.</div>
+                </div>
             </div>
             """, unsafe_allow_html=True)
         
         if analysis.get('vocabulary'):
             st.markdown('<div class="analysis-section">', unsafe_allow_html=True)
             st.markdown('<div class="analysis-label">词汇笔记 (어휘 노트)</div>', unsafe_allow_html=True)
-            vocab_text = "<br>".join([f"• {v}" for v in analysis['vocabulary']])
-            st.markdown(f'<div class="vocabulary-box">{vocab_text}</div>', unsafe_allow_html=True)
+            vocab_html = "<div class='vocabulary-box'>"
+            for v in analysis['vocabulary']:
+                vocab_html += f"<div style='margin-bottom: 0.25rem;'>• {v}</div>"
+                vocab_html += f"<div style='color: #666; font-size: 0.75rem; margin-left: 1rem; margin-bottom: 0.5rem;'>[한글] '认识'는 HSK 3급 단어로, 누군가를 안다는 의미</div>"
+            vocab_html += "</div>"
+            st.markdown(vocab_html, unsafe_allow_html=True)
             st.markdown('</div>', unsafe_allow_html=True)
         
         if analysis.get('notes'):
             st.markdown(f"""
             <div class="analysis-section">
                 <div class="analysis-label">附加说明 (추가 설명)</div>
-                <div class="notes-box">{analysis['notes']}</div>
+                <div class="notes-box">
+                    <div style="color: #333; margin-bottom: 0.25rem;">{analysis['notes']}</div>
+                    <div style="color: #666; font-size: 0.75rem; margin-top: 0.375rem;">[한글] 표준 중국어 인사말로, 처음 만날 때 사용하기 적합합니다.</div>
+                </div>
             </div>
             """, unsafe_allow_html=True)
         
-        st.markdown('</div>', unsafe_allow_html=True)
-    
-    st.markdown('</div>', unsafe_allow_html=True)
-
-# 메시지 전송
-if send_button and user_input.strip():
-    st.session_state.messages.append({
-        'role': 'user',
-        'content': user_input
-    })
-    
-    st.session_state.is_loading = True
-    st.rerun()
-
-# 로딩 후 응답 생성
-if st.session_state.is_loading and len(st.session_state.messages) > 0 and st.session_state.messages[-1]['role'] == 'user':
-    time.sleep(1)
-    
-    assistant_message = {
-        'role': 'assistant',
-        'content': '你好！很高兴认识你。今天想聊什么？'
-    }
-    
-    st.session_state.messages.append(assistant_message)
-    
-    if st.session_state.selected_language == 'chinese':
-        st.session_state.detailed_analysis = {
-            'pinyin': 'nǐ hǎo! hěn gāoxìng rènshi nǐ. jīntiān xiǎng liáo shénme?',
-            'words': [
-                {'chinese': '你好', 'pinyin': 'nǐ hǎo', 'meaning': '안녕하세요'},
-                {'chinese': '很', 'pinyin': 'hěn', 'meaning': '매우'},
-                {'chinese': '高兴', 'pinyin': 'gāoxìng', 'meaning': '기쁘다'},
-                {'chinese': '认识', 'pinyin': 'rènshi', 'meaning': '알다, 만나다'},
-                {'chinese': '今天', 'pinyin': 'jīntiān', 'meaning': '오늘'},
-                {'chinese': '想', 'pinyin': 'xiǎng', 'meaning': '~하고 싶다'},
-                {'chinese': '聊', 'pinyin': 'liáo', 'meaning': '이야기하다'},
-                {'chinese': '什么', 'pinyin': 'shénme', 'meaning': '무엇'}
-            ],
-            'grammar': "这是一个简单的问候句。'很高兴认识你' 是固定搭配，表示见面时的礼貌用语。",
-            'vocabulary': ["'认识' 是HSK 3级词汇，表示认识某人", "'聊' 是口语中常用的动词"],
-            'notes': "这是标准的中文问候语，适合初次见面使用。"
-        }
-    
-    st.session_state.is_loading = False
-    st.rerun()
+        # 사용자 피드백 추가
+        if analysis.get
