@@ -126,19 +126,6 @@ st.markdown("""
         margin: 0 -1rem;
     }
     
-    .analysis-header {
-        background: #fafafa;
-        padding: 0.75rem 1rem;
-        font-weight: 500;
-        font-size: 0.875rem;
-        color: #353535;
-        border-bottom: 1px solid #e5e5e5;
-        cursor: pointer;
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-    }
-    
     .analysis-content {
         padding: 1rem;
         background: #ffffff;
@@ -298,29 +285,6 @@ st.markdown("""
         color: #353535;
     }
     
-    /* 저장 버튼 */
-    .stButton > button[kind="secondary"] {
-        background: #ffffff;
-        color: #09b83e;
-        border: 1px solid #09b83e;
-        border-radius: 0.375rem;
-        padding: 0.625rem;
-        width: 100%;
-        font-size: 0.9375rem;
-        font-weight: 500;
-    }
-    
-    .stButton > button[kind="secondary"]:hover {
-        background: #f0fdf4;
-    }
-    
-    .stButton > button[kind="secondary"]:disabled {
-        background: #f5f5f5;
-        color: #d9d9d9;
-        border-color: #d9d9d9;
-        cursor: not-allowed;
-    }
-    
     /* 로딩 애니메이션 - WeChat 스타일 */
     .loading-message {
         background: #ffffff;
@@ -440,17 +404,6 @@ st.markdown("""
         border: none;
         border-top: 1px solid #e5e5e5;
         margin: 1rem 0;
-    }
-    
-    /* 에러 메시지 */
-    .error-message {
-        background: #fee;
-        color: #c33;
-        padding: 0.625rem 0.875rem;
-        border-radius: 0.375rem;
-        margin: 0.5rem 0;
-        font-size: 0.875rem;
-        border: 1px solid #fcc;
     }
 </style>
 """, unsafe_allow_html=True)
@@ -574,10 +527,8 @@ with st.sidebar:
     save_disabled = len(st.session_state.messages) == 0
     
     if st.button("💾 대화 저장", disabled=save_disabled, use_container_width=True, key='save_btn'):
-        # 메타데이터 포함
         text_content = f"언어 학습 기록\n언어: {current_lang['name']}\n숙련도: {proficiency_kr}\n날짜: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n\n"
         
-        # 역할 표시, 번역문 포함
         for msg in st.session_state.messages:
             role = "학습자" if msg['role'] == 'user' else "튜터"
             text_content += f"{role}: {msg['content']}\n"
@@ -585,7 +536,6 @@ with st.sidebar:
                 text_content += f"[번역]: {msg['translation']}\n"
             text_content += "\n"
         
-        # 파일 다운로드
         st.download_button(
             label="📥 파일 다운로드",
             data=text_content.encode('utf-8'),
@@ -597,7 +547,6 @@ with st.sidebar:
 # 메시지 표시 영역
 st.markdown('<div class="messages-container">', unsafe_allow_html=True)
 
-# 빈 화면 안내
 if len(st.session_state.messages) == 0:
     st.markdown(f"""
     <div class="empty-state">
@@ -607,20 +556,15 @@ if len(st.session_state.messages) == 0:
     </div>
     """, unsafe_allow_html=True)
 else:
-    # 시간 표시 (첫 메시지)
     if st.session_state.messages:
         st.markdown(f'<div class="message-time">{datetime.now().strftime("%p %I:%M")}</div>', unsafe_allow_html=True)
     
-    # 메시지 히스토리 표시
     for idx, msg in enumerate(st.session_state.messages):
         if msg['role'] == 'user':
-            # 사용자 메시지
             st.markdown(f'<div class="user-message">{msg["content"]}</div><div style="clear:both;"></div>', unsafe_allow_html=True)
         else:
-            # 튜터 메시지
             show_trans = st.session_state.show_translation.get(idx, False)
             
-            # 번역 표시 로직
             if 'translation' in msg and show_trans:
                 content = f"""
                 <div style="color: #000000;">{msg['content']}</div>
@@ -628,7 +572,6 @@ else:
                 <div class="translation-toggle">👆 원문 보기</div>
                 """
             else:
-                # 번역 중 표시
                 is_translating = st.session_state.translating_message_id == idx
                 toggle_text = "⏳ 번역 중..." if is_translating else "👆 번역하기"
                 content = f"""
@@ -636,24 +579,16 @@ else:
                 <div class="translation-toggle">{toggle_text}</div>
                 """
             
-            # 클릭 이벤트
             col1, col2, col3 = st.columns([0.5, 10, 0.5])
             with col2:
-                # 번역 토글 버튼
                 if st.button(f"toggle_{idx}", key=f"msg_btn_{idx}", use_container_width=True):
                     if 'translation' in msg:
-                        # 번역 토글
                         st.session_state.show_translation[idx] = not show_trans
                         st.rerun()
                     elif not is_translating:
-                        # 번역 시작
                         st.session_state.translating_message_id = idx
                         st.rerun()
-                        
-                        # 실제로는 API 호출하지만 여기서는 시뮬레이션
                         time.sleep(1)
-                        
-                        # 번역 결과 저장
                         st.session_state.messages[idx]['translation'] = f"[번역] {msg['content']}"
                         st.session_state.translating_message_id = None
                         st.session_state.show_translation[idx] = True
@@ -663,11 +598,9 @@ else:
             
             st.markdown('<div style="clear:both;"></div>', unsafe_allow_html=True)
         
-        # 일부 메시지 후 시간 표시
         if (idx + 1) % 4 == 0 and idx < len(st.session_state.messages) - 1:
             st.markdown(f'<div class="message-time">{datetime.now().strftime("%p %I:%M")}</div>', unsafe_allow_html=True)
     
-    # 로딩 인디케이터
     if st.session_state.is_loading:
         st.markdown("""
         <div class="loading-message">
@@ -686,13 +619,11 @@ st.markdown('</div>', unsafe_allow_html=True)
 if st.session_state.selected_language == 'chinese' and st.session_state.detailed_analysis:
     st.markdown('<div class="analysis-panel">', unsafe_allow_html=True)
     
-    # 분석 패널 토글
     with st.expander("📚 상세 분석", expanded=st.session_state.show_analysis):
         analysis = st.session_state.detailed_analysis
         
         st.markdown('<div class="analysis-content">', unsafe_allow_html=True)
         
-        # 병음 표시
         if analysis.get('pinyin'):
             st.markdown(f"""
             <div class="analysis-section">
@@ -701,7 +632,6 @@ if st.session_state.selected_language == 'chinese' and st.session_state.detailed
             </div>
             """, unsafe_allow_html=True)
         
-        # 단어 분해
         if analysis.get('words'):
             st.markdown('<div class="analysis-section">', unsafe_allow_html=True)
             st.markdown('<div class="analysis-label">단어</div>', unsafe_allow_html=True)
@@ -717,7 +647,6 @@ if st.session_state.selected_language == 'chinese' and st.session_state.detailed
                 """, unsafe_allow_html=True)
             st.markdown('</div>', unsafe_allow_html=True)
         
-        # 문법 설명
         if analysis.get('grammar'):
             st.markdown(f"""
             <div class="analysis-section">
@@ -726,7 +655,6 @@ if st.session_state.selected_language == 'chinese' and st.session_state.detailed
             </div>
             """, unsafe_allow_html=True)
         
-        # 어휘 노트
         if analysis.get('vocabulary'):
             st.markdown('<div class="analysis-section">', unsafe_allow_html=True)
             st.markdown('<div class="analysis-label">어휘 노트</div>', unsafe_allow_html=True)
@@ -734,7 +662,6 @@ if st.session_state.selected_language == 'chinese' and st.session_state.detailed
             st.markdown(f'<div class="vocabulary-box">{vocab_text}</div>', unsafe_allow_html=True)
             st.markdown('</div>', unsafe_allow_html=True)
         
-        # 추가 설명
         if analysis.get('notes'):
             st.markdown(f"""
             <div class="analysis-section">
@@ -768,20 +695,18 @@ st.markdown('</div>', unsafe_allow_html=True)
 
 # 메시지 전송
 if send_button and user_input.strip():
-    # 사용자 메시지 추가
     st.session_state.messages.append({
         'role': 'user',
         'content': user_input
     })
     
-    # 로딩 시작
     st.session_state.is_loading = True
     st.rerun()
-    
-    # 로딩 표시
+
+# 로딩 후 응답 생성
+if st.session_state.is_loading and len(st.session_state.messages) > 0 and st.session_state.messages[-1]['role'] == 'user':
     time.sleep(1)
     
-    # 임시 응답
     assistant_message = {
         'role': 'assistant',
         'content': '你好！很高兴认识你。今天想聊什么？'
@@ -789,5 +714,23 @@ if send_button and user_input.strip():
     
     st.session_state.messages.append(assistant_message)
     
-    # 중국어 분석 추가
-    if st.
+    if st.session_state.selected_language == 'chinese':
+        st.session_state.detailed_analysis = {
+            'pinyin': 'nǐ hǎo! hěn gāoxìng rènshi nǐ. jīntiān xiǎng liáo shénme?',
+            'words': [
+                {'chinese': '你好', 'pinyin': 'nǐ hǎo', 'meaning': '안녕하세요'},
+                {'chinese': '很', 'pinyin': 'hěn', 'meaning': '매우'},
+                {'chinese': '高兴', 'pinyin': 'gāoxìng', 'meaning': '기쁘다'},
+                {'chinese': '认识', 'pinyin': 'rènshi', 'meaning': '알다, 만나다'},
+                {'chinese': '今天', 'pinyin': 'jīntiān', 'meaning': '오늘'},
+                {'chinese': '想', 'pinyin': 'xiǎng', 'meaning': '~하고 싶다'},
+                {'chinese': '聊', 'pinyin': 'liáo', 'meaning': '이야기하다'},
+                {'chinese': '什么', 'pinyin': 'shénme', 'meaning': '무엇'}
+            ],
+            'grammar': "这是一个简单的问候句。'很高兴认识你' 是固定搭配，表示见面时的礼貌用语。",
+            'vocabulary': ["'认识' 是HSK 3级词汇，表示认识某人", "'聊' 是口语中常用的动词"],
+            'notes': "这是标准的中文问候语，适合初次见面使用。"
+        }
+    
+    st.session_state.is_loading = False
+    st.rerun()
