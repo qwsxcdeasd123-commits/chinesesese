@@ -494,6 +494,46 @@ def _normalize_vocab_list(raw):
             })
     return out
 
+        def extract_full_vocab_from_text(assistant_text: str):
+    """
+    튜터 발화에 등장한 모든 고유 단어(중복 제거)를 추출해
+    HSK 학습용 상세 필드로 반환한다.
+    반환 형식: [{word, pinyin, pos, hsk_level, meaning_ko, synonyms, collocations, example:{cn,pinyin,ko}}]
+    """
+    system_prompt = (
+        "역할: 중국어 어휘 추출기. 출력은 반드시 JSON만.\n"
+        "규칙:\n"
+        "- 입력 문장에서 등장한 고유 단어(중복 제거)를 모두 추출.\n"
+        "- 각 단어에 대해 다음 필드를 채움:\n"
+        "  word, pinyin, pos, hsk_level, meaning_ko, synonyms, collocations, example{cn,pinyin,ko}\n"
+        "- 동형어/변형은 대표 표제어 기준으로 1개만.\n"
+        "- 불확실하면 '확인 불가'로 기입.\n"
+        "- 한국어 뜻은 간결·정확하게.\n"
+        "- JSON 키는 소문자 스네이크케이스 유지."
+    )
+    user_prompt = (
+        "다음 중국어 튜터 발화에서 등장한 모든 단어를 추출하여 학습용 어휘 목록을 만들어라.\n"
+        "반환 형식은 JSON 배열만 허용.\n"
+        f"[튜터 발화]\n{assistant_text}"
+    )
+    raw = _claude(messages=[{"role":"user","content":user_prompt}], system=system_prompt, max_tokens=1400, temperature=0)
+    try:
+        data = json.loads(raw)
+        return _normalize_vocab_list(data if isinstance(data, list) else [])
+    except Exception:
+        return []
+
+def _merge_vocab_no_dup(primary_list, extra_list):
+    """word 기준 중복 없이 병합"""
+    seen = { (v.get("word") or "").strip() for v in primary_list }
+    out = list(primary_list)
+    for v in extra_list:
+        w = (v.get("word") or "").strip()
+        if w and w not in seen:
+            out.append(v)
+            seen.add(w)
+    return out
+
 # -------- 상세분석(튜터 발화 기준) & 사용자 피드백(학습자 발화 기준) ----------
 def analyze_assistant_output(assistant_text: str):
     system_prompt = (
@@ -737,9 +777,14 @@ if st.session_state.is_loading and len(st.session_state.messages) > 0 and st.ses
         if st.session_state.selected_language == 'chinese':
             analysis_core = analyze_assistant_output(reply_text)
             analysis_core['feedback'] = generate_user_feedback(user_msg)
+            # 튜터 문장에 등장한 모든 단어를 추가로 수집하여 병합
+            _full_vocab = extract_full_vocab_from_text(reply_text)
+            analysis_core['vocabulary'] = _merge_vocab_no_dup(analysis_core.get('vocabulary', []), _full_vocab)
+
             st.session_state.detailed_analysis = analysis_core
         else:
             st.session_state.detailed_analysis = None
+            
 
     except Exception as e:
         st.session_state.messages.append({'role': 'assistant','content': f"[오류] LLM 호출 실패: {e}"})
