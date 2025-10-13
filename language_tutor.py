@@ -67,13 +67,14 @@ st.markdown("""
         margin: 0.5rem 0; margin-left: auto; max-width: 70%; text-align: left; float: right; clear: both;
         box-shadow: 0 1px 2px rgba(0,0,0,0.1); word-wrap: break-word; font-size: 0.9375rem; line-height: 1.4; white-space: pre-wrap;
     }
-    /* 튜터 말풍선 — 여백 축소 */
+    /* 튜터 말풍선 — 여백/패딩 더 축소 */
     .assistant-message {
-        background: #fff; color: #000; padding: 0.375rem 0.625rem !important; border-radius: 0.375rem;
-        margin: 0.25rem 0 !important; margin-right: auto; max-width: 70%; float: left; clear: both;
+        background: #fff; color: #000; padding: 0.25rem 0.5rem !important; border-radius: 0.375rem;
+        margin: 0.1rem 0 !important; margin-right: auto; max-width: 70%; float: left; clear: both;
         box-shadow: none !important; cursor: pointer; word-wrap: break-word; font-size: 0.875rem !important;
-        line-height: 1.3 !important; white-space: pre-wrap;
+        line-height: 1.25 !important; white-space: pre-wrap;
     }
+    .assistant-message + .assistant-message{ margin-top: 0.05rem !important; }
     .assistant-message:active { background: #f5f5f5; }
 
     /* 번역 관련 */
@@ -117,7 +118,7 @@ st.markdown("""
     .vocabulary-box { background: #f0fdf4; padding: 0.625rem; border-radius: 0.25rem; font-size: 0.8125rem; color: #333; border: 1px solid #bbf7d0; line-height: 1.5; }
     .notes-box { background: #fff7e6; padding: 0.625rem; border-radius: 0.25rem; font-size: 0.8125rem; color: #333; border: 1px dashed #f5c97a; line-height: 1.5; }
 
-    /* 피드백 박스(보라) – 폰트 더 작게, 상세 항목도 포함 */
+    /* 피드백 박스(보라) */
     .feedback-box {
         background: #f3e8ff;
         padding: 0.5rem;
@@ -129,6 +130,23 @@ st.markdown("""
     }
     .feedback-list { margin: 0.25rem 0 0 0.75rem; padding: 0; }
     .feedback-list li { margin: 0.1rem 0; }
+
+    /* ===== 상세분석 폰트 통일: 병음과 동일(0.875rem) ===== */
+    .pinyin-box,
+    .grammar-box,
+    .vocabulary-box,
+    .notes-box,
+    .feedback-box,
+    .analysis-section,
+    .analysis-section * { 
+        font-size: 0.875rem !important;
+        line-height: 1.5;
+    }
+    .gram-badge{
+        display:inline-block; padding:0.125rem 0.375rem; border-radius:0.25rem;
+        background:#e6f4ea; border:1px solid #b7e0c2; color:#1b5e20; font-weight:600; 
+        margin-left:0.375rem; font-size:0.75rem !important;
+    }
 
     /* 입력 영역 */
     .input-container { background: #f7f7f7; border-top: 1px solid #d9d9d9; padding: 0.625rem 1rem; margin: 0.5rem -1rem 0 -1rem; }
@@ -332,7 +350,6 @@ else:
                     st.rerun()
             st.markdown('<div style="clear:both;"></div>', unsafe_allow_html=True)
 
-    # << 입력중(로딩) 표시 >>
     if st.session_state.is_loading:
         st.markdown("""
         <div class="loading-message">
@@ -430,10 +447,6 @@ def extract_user_name_from_message(latest_user_msg: str) -> str:
 
 # ---------- 방어적 노멀라이저 ----------
 def _normalize_grammar_list(raw):
-    """
-    raw: list[dict|str] -> list[dict]
-    dict에는 최소 필드(title, pattern, explanation_ko, examples, pitfalls)를 보장.
-    """
     out = []
     if not isinstance(raw, list):
         return out
@@ -457,10 +470,6 @@ def _normalize_grammar_list(raw):
     return out
 
 def _normalize_vocab_list(raw):
-    """
-    raw: list[dict|str] -> list[dict]
-    dict에는 최소 필드(word, pinyin, pos, hsk_level, meaning_ko, synonyms, collocations, example)를 보장.
-    """
     out = []
     if not isinstance(raw, list):
         return out
@@ -483,21 +492,17 @@ def _normalize_vocab_list(raw):
             })
     return out
 
-# -------- 상세분석(튜터 발화 기준: HSK 학습용 상세) & 사용자 피드백(보라박스, 상세) ----------
+# -------- 상세분석(튜터 발화 기준) & 사용자 피드백(학습자 발화 기준) ----------
 def analyze_assistant_output(assistant_text: str):
-    """
-    튜터가 방금 보낸 중국어 발화 분석.
-    HSK 준비용으로 세부화: 문법 포인트 배열, 어휘 노트(품사/HSK 레벨/예문/주요 용법), 추가 설명(학습팁/주의점).
-    """
     system_prompt = (
         "역할: 중국어 학습 분석기.\n"
         "출력: 반드시 JSON만 출력.\n"
         "필수 키:\n"
-        "- pinyin: 발화 전체의 병음을 간단히 표기.\n"
-        "- grammar: 배열. 각 항목은 {title, pattern, explanation_ko, examples:[{cn, pinyin, ko}], pitfalls:[str]} 형식.\n"
-        "- vocabulary: 배열. 각 항목은 {word, pinyin, pos, hsk_level, meaning_ko, synonyms:[str], collocations:[str], example:{cn, pinyin, ko}}.\n"
-        "- notes: HSK 학습 팁과 요약을 한국어로 3~5문장.\n"
-        "모든 한국어 설명은 정확·간결하게. 불확실하면 '확인 불가' 명시."
+        "- pinyin\n"
+        "- grammar: [{title, pattern, explanation_ko, examples:[{cn, pinyin, ko}], pitfalls:[str]}]\n"
+        "- vocabulary: [{word, pinyin, pos, hsk_level, meaning_ko, synonyms:[str], collocations:[str], example:{cn, pinyin, ko}}]\n"
+        "- notes: 한국어 3~5문장 요약/학습팁\n"
+        "불확실하면 '확인 불가' 명시."
     )
     user_prompt = (
         "다음 텍스트를 분석하라. 대상은 튜터의 중국어 발화다.\n"
@@ -517,17 +522,11 @@ def analyze_assistant_output(assistant_text: str):
         return {"pinyin":"확인 불가","grammar":[],"vocabulary":[],"notes":"확인 불가"}
 
 def generate_user_feedback(user_msg: str):
-    """
-    사용자 발화에 대한 상세 피드백:
-    - expression, grammar_feedback, context, word_choice
-    - alternatives: 대안 표현(중국어 문장) 배열
-    - synonyms: 유사 어휘 배열(중국어)
-    - corrections: 배열 {before, after, reason_ko}
-    """
     system_prompt = (
         "역할: 중국어 학습 피드백 생성기.\n"
         "출력: 반드시 JSON만 출력.\n"
-        "키: feedback({expression, grammar_feedback, context, word_choice, alternatives:[str], synonyms:[str], corrections:[{before, after, reason_ko}]})."
+        "키: feedback({expression, grammar_feedback, context, word_choice, "
+        "alternatives:[str], synonyms:[str], corrections:[{before, after, reason_ko}]})."
     )
     user_prompt = (
         "다음 학습자 발화에 대해 상세 피드백을 생성하라.\n"
@@ -571,38 +570,52 @@ if st.session_state.selected_language == 'chinese' and st.session_state.detailed
             </div>
             """, unsafe_allow_html=True)
 
-        # 문법(다항목, HSK용 상세)
+        # 문법(단일 HTML로 묶어서 박스 누락 방지)
         grammar_list = _normalize_grammar_list(analysis.get("grammar", []))
         if grammar_list:
-            st.markdown(f"""
+            grammar_html = """
             <div class="analysis-section">
-                <div class="analysis-label">语法 (문법)</div>
-                <div class="grammar-box">
-            """, unsafe_allow_html=True)
+              <div class="analysis-label">语法 (문법)</div>
+              <div class="grammar-box">
+            """
             for g in grammar_list:
-                title = g.get("title","문법 포인트")
+                title   = g.get("title","문법 포인트")
                 pattern = g.get("pattern","확인 불가")
-                exp = g.get("explanation_ko","확인 불가")
-                st.markdown(f"<div><strong>{title}</strong> — <code>{pattern}</code><br>{exp}</div>", unsafe_allow_html=True)
+                exp     = g.get("explanation_ko","확인 불가")
+                grammar_html += f"""
+                <div style="margin-bottom:0.5rem;">
+                  <strong>{title}</strong> — <code>{pattern}</code>
+                  <div style="margin-top:0.25rem;">{exp}</div>
+                """
+
                 exs = g.get("examples",[])
                 if exs:
-                    st.markdown("<div style='margin:0.25rem 0 0.5rem 0.75rem;'>예문:</div>", unsafe_allow_html=True)
+                    grammar_html += "<div style='margin:0.25rem 0 0.25rem 0.75rem;'>예문:</div>"
                     for e in exs:
-                        st.markdown(f"<div style='margin-left:1rem;'>• {e.get('cn','')} <span style='color:#888'>({e.get('pinyin','')})</span> — {e.get('ko','')}</div>", unsafe_allow_html=True)
+                        grammar_html += (
+                            f"<div style='margin-left:1rem;'>• {e.get('cn','')} "
+                            f"<span style='color:#888'>({e.get('pinyin','')})</span> — {e.get('ko','')}</div>"
+                        )
+
                 pits = g.get("pitfalls",[])
                 if pits:
-                    st.markdown("<div style='margin:0.25rem 0 0.25rem 0.75rem;'>주의:</div>", unsafe_allow_html=True)
+                    grammar_html += "<div style='margin:0.25rem 0 0.25rem 0.75rem;'>주의:</div>"
                     for p in pits:
-                        st.markdown(f"<div style='margin-left:1rem;'>- {p}</div>", unsafe_allow_html=True)
-                st.markdown("<hr style='border-top:1px dashed #fde68a;margin:0.5rem 0;'/>", unsafe_allow_html=True)
-            st.markdown("</div></div>", unsafe_allow_html=True)
+                        grammar_html += f"<div style='margin-left:1rem;'>- {p}</div>"
 
-        # 어휘 노트(품사/HSK/콜로케이션/예문)
+                grammar_html += "<hr style='border-top:1px dashed #fde68a; margin:0.5rem 0;'/>"
+                grammar_html += "</div>"
+            grammar_html += "</div></div>"
+            st.markdown(grammar_html, unsafe_allow_html=True)
+
+        # 어휘 노트
         vocab_list = _normalize_vocab_list(analysis.get("vocabulary", []))
         if vocab_list:
-            st.markdown('<div class="analysis-section">', unsafe_allow_html=True)
-            st.markdown('<div class="analysis-label">词汇笔记 (어휘 노트)</div>', unsafe_allow_html=True)
-            vocab_html = "<div class='vocabulary-box'>"
+            vocab_html = """
+            <div class="analysis-section">
+              <div class="analysis-label">词汇笔记 (어휘 노트)</div>
+              <div class="vocabulary-box">
+            """
             for v in vocab_list:
                 vocab_html += (
                     f"<div style='margin-bottom:0.5rem;'>"
@@ -619,11 +632,10 @@ if st.session_state.selected_language == 'chinese' and st.session_state.detailed
                 if ex:
                     vocab_html += f"<div>예문: {ex.get('cn','')} <span style='color:#888'>({ex.get('pinyin','')})</span> — {ex.get('ko','')}</div>"
                 vocab_html += "</div>"
-            vocab_html += "</div>"
+            vocab_html += "</div></div>"
             st.markdown(vocab_html, unsafe_allow_html=True)
-            st.markdown('</div>', unsafe_allow_html=True)
 
-        # 추가 설명(HSK 팁)
+        # 추가 설명
         notes = analysis.get("notes")
         if notes:
             st.markdown(f"""
@@ -633,38 +645,41 @@ if st.session_state.selected_language == 'chinese' and st.session_state.detailed
             </div>
             """, unsafe_allow_html=True)
 
-        # 사용자 피드백(보라 박스, 더 작게 + 대안/유의어/교정 포함)
+        # 사용자 피드백(단일 HTML로 묶기)
         if analysis.get('feedback'):
             fdb = analysis['feedback']
-            st.markdown("""
+            fb_html = """
             <div class="analysis-section">
-                <div class="analysis-label">您的反馈 (사용자 피드백)</div>
-                <div class="feedback-box">
-            """, unsafe_allow_html=True)
-            st.markdown(f"<div><strong>표현:</strong> {fdb.get('expression','확인 불가')}</div>", unsafe_allow_html=True)
-            st.markdown(f"<div><strong>문법:</strong> {fdb.get('grammar_feedback','확인 불가')}</div>", unsafe_allow_html=True)
-            st.markdown(f"<div><strong>맥락:</strong> {fdb.get('context','확인 불가')}</div>", unsafe_allow_html=True)
-            st.markdown(f"<div><strong>단어 선택:</strong> {fdb.get('word_choice','확인 불가')}</div>", unsafe_allow_html=True)
+              <div class="analysis-label">您的反馈 (사용자 피드백)</div>
+              <div class="feedback-box">
+            """
+            fb_html += f"<div><strong>표현:</strong> {fdb.get('expression','확인 불가')}</div>"
+            fb_html += f"<div><strong>문법:</strong> {fdb.get('grammar_feedback','확인 불가')}</div>"
+            fb_html += f"<div><strong>맥락:</strong> {fdb.get('context','확인 불가')}</div>"
+            fb_html += f"<div><strong>단어 선택:</strong> {fdb.get('word_choice','확인 불가')}</div>"
 
             alts = fdb.get("alternatives", [])
             if alts:
-                st.markdown("<div style='margin-top:0.25rem;'><strong>대안 표현:</strong></div>", unsafe_allow_html=True)
-                st.markdown("<ul class='feedback-list'>" + "".join([f"<li>{a}</li>" for a in alts]) + "</ul>", unsafe_allow_html=True)
+                fb_html += "<div style='margin-top:0.25rem;'><strong>대안 표현:</strong></div><ul class='feedback-list'>"
+                fb_html += "".join([f"<li>{a}</li>" for a in alts]) + "</ul>"
 
             syns = fdb.get("synonyms", [])
             if syns:
-                st.markdown("<div style='margin-top:0.25rem;'><strong>유사 어휘:</strong></div>", unsafe_allow_html=True)
-                st.markdown("<ul class='feedback-list'>" + "".join([f"<li>{s}</li>" for s in syns]) + "</ul>", unsafe_allow_html=True)
+                fb_html += "<div style='margin-top:0.25rem;'><strong>유사 어휘:</strong></div><ul class='feedback-list'>"
+                fb_html += "".join([f"<li>{s}</li>" for s in syns]) + "</ul>"
 
             cors = fdb.get("corrections", [])
             if cors:
-                st.markdown("<div style='margin-top:0.25rem;'><strong>교정 제안:</strong></div>", unsafe_allow_html=True)
-                items = ""
+                fb_html += "<div style='margin-top:0.25rem;'><strong>교정 제안:</strong></div><ul class='feedback-list'>"
                 for c in cors:
-                    items += f"<li><code>{c.get('before','')}</code> → <code>{c.get('after','')}</code> — {c.get('reason_ko','')}</li>"
-                st.markdown("<ul class='feedback-list'>" + items + "</ul>", unsafe_allow_html=True)
+                    fb_html += (
+                        f"<li><code>{c.get('before','')}</code> → "
+                        f"<code>{c.get('after','')}</code> — {c.get('reason_ko','')}</li>"
+                    )
+                fb_html += "</ul>"
 
-            st.markdown("</div></div>", unsafe_allow_html=True)
+            fb_html += "</div></div>"
+            st.markdown(fb_html, unsafe_allow_html=True)
 
 # ==================== 번역 처리 ====================
 if st.session_state.translating_message_id is not None:
@@ -685,7 +700,6 @@ if st.session_state.translating_message_id is not None:
 # ==================== 전송 처리 ====================
 if send_button and user_input.strip():
     st.session_state.messages.append({'role': 'user', 'content': user_input})
-    # 첫 사용자 입력에서 이름 캡처 시도
     if st.session_state.user_name is None:
         try:
             cand = extract_user_name_from_message(user_input)
@@ -697,19 +711,14 @@ if send_button and user_input.strip():
     st.session_state.input_key += 1
     st.rerun()
 
-# ==================== LLM 응답 생성(입력중 표시 활성화 상태에서 수행) ====================
+# ==================== LLM 응답 생성 ====================
 if st.session_state.is_loading and len(st.session_state.messages) > 0 and st.session_state.messages[-1]['role'] == 'user':
-    # 위에서 is_loading=True 상태로 한 번 렌더(= typing 표시) 후, 실제 생성 수행
     time.sleep(0.1)
     user_msg = st.session_state.messages[-1]['content']
     try:
-        # 어시스턴트 응답
         reply_text = generate_assistant_reply(user_msg) or "확인 불가"
         st.session_state.messages.append({'role': 'assistant', 'content': reply_text})
 
-        # 상세분석 생성 규칙:
-        # - 문법/어휘/노트: 튜터 발화(reply_text) 기준 (HSK 학습용으로 상세)
-        # - 피드백: 사용자 발화(user_msg) 기준 (보라 박스)
         if st.session_state.selected_language == 'chinese':
             analysis_core = analyze_assistant_output(reply_text)
             analysis_core['feedback'] = generate_user_feedback(user_msg)
