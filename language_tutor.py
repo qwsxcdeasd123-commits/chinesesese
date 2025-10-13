@@ -108,11 +108,11 @@ st.markdown("""
     .analysis-content { padding: 1rem; background: #fff; }
     .analysis-section { margin-bottom: 1rem; }
     .analysis-label { font-size: 0.75rem; color: #999; margin-bottom: 0.375rem; font-weight: 500; }
-    .pinyin-box { background: #f0f9ff; padding: 0.625rem; border-radius: 0.25rem; color: #1e40af; font-size: 0.875rem; border: 1px solid #bfdbfe; line-height: 1.5; }
-    .word-item { background: #fafafa; border: 1px solid #e5e5e5; border-radius: 0.25rem; padding: 0.5rem; margin: 0.375rem 0; font-size: 0.875rem; }
-    .word-chinese { font-weight: 600; font-size: 1rem; color: #000; }
+    .pinyin-box { background: #f0f9ff; padding: 0.625rem; border-radius: 0.25rem; color: #1e40af; font-size: 0.8rem; border: 1px solid #bfdbfe; line-height: 1.5; }
+    .word-item { background: #fafafa; border: 1px solid #e5e5e5; border-radius: 0.25rem; padding: 0.5rem; margin: 0.375rem 0; font-size: 0.8rem; }
+    .word-chinese { font-weight: 600; font-size: 0.8rem; color: #000; }
     .word-pinyin { color: #09b83e; margin-left: 0.375rem; }
-    .word-meaning { color: #666; margin-top: 0.25rem; font-size: 0.8125rem; }
+    .word-meaning { color: #666; margin-top: 0.25rem; font-size: 0.8rem; }
 
     .grammar-box { background: #fef9e7; padding: 0.625rem; border-radius: 0.25rem; font-size: 0.8125rem; color: #333; border: 1px solid #fde68a; line-height: 1.5; }
     .vocabulary-box { background: #f0fdf4; padding: 0.625rem; border-radius: 0.25rem; font-size: 0.8125rem; color: #333; border: 1px solid #bbf7d0; line-height: 1.5; }
