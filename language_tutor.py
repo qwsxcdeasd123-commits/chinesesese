@@ -122,7 +122,7 @@ st.markdown("""
         background: #f3e8ff;
         padding: 0.5rem;
         border-radius: 0.25rem;
-        font-size: 0.75rem;            /* ↓ 더 작게 */
+        font-size: 0.75rem;
         color: #333333;
         border: 1px solid #d8b4fe;
         line-height: 1.45;
@@ -428,7 +428,62 @@ def extract_user_name_from_message(latest_user_msg: str) -> str:
     except Exception:
         return ""
 
-# -------- 상세분석(튜터 발화 기준: HSK 학습용으로 상세) & 사용자 피드백(보라박스, 상세) ----------
+# ---------- 방어적 노멀라이저 ----------
+def _normalize_grammar_list(raw):
+    """
+    raw: list[dict|str] -> list[dict]
+    dict에는 최소 필드(title, pattern, explanation_ko, examples, pitfalls)를 보장.
+    """
+    out = []
+    if not isinstance(raw, list):
+        return out
+    for i, g in enumerate(raw, 1):
+        if isinstance(g, dict):
+            out.append({
+                "title": g.get("title") or f"문법 포인트 {i}",
+                "pattern": g.get("pattern") or "확인 불가",
+                "explanation_ko": g.get("explanation_ko") or "확인 불가",
+                "examples": g.get("examples") or [],
+                "pitfalls": g.get("pitfalls") or []
+            })
+        elif isinstance(g, str):
+            out.append({
+                "title": f"문법 포인트 {i}",
+                "pattern": "확인 불가",
+                "explanation_ko": g,
+                "examples": [],
+                "pitfalls": []
+            })
+    return out
+
+def _normalize_vocab_list(raw):
+    """
+    raw: list[dict|str] -> list[dict]
+    dict에는 최소 필드(word, pinyin, pos, hsk_level, meaning_ko, synonyms, collocations, example)를 보장.
+    """
+    out = []
+    if not isinstance(raw, list):
+        return out
+    for v in raw:
+        if isinstance(v, dict):
+            out.append({
+                "word": v.get("word") or "",
+                "pinyin": v.get("pinyin") or "",
+                "pos": v.get("pos") or "확인 불가",
+                "hsk_level": v.get("hsk_level") or "확인 불가",
+                "meaning_ko": v.get("meaning_ko") or "확인 불가",
+                "synonyms": v.get("synonyms") or [],
+                "collocations": v.get("collocations") or [],
+                "example": v.get("example") or {}
+            })
+        elif isinstance(v, str):
+            out.append({
+                "word": v, "pinyin": "", "pos": "확인 불가", "hsk_level": "확인 불가",
+                "meaning_ko": "확인 불가", "synonyms": [], "collocations": [], "example": {}
+            })
+    return out
+
+# -------- 상세분석(튜터 발화 기준: HSK 학습용 상세) & 사용자 피드백(보라박스, 상세) ----------
 def analyze_assistant_output(assistant_text: str):
     """
     튜터가 방금 보낸 중국어 발화 분석.
@@ -454,8 +509,8 @@ def analyze_assistant_output(assistant_text: str):
         data = json.loads(raw)
         return {
             "pinyin": data.get("pinyin",""),
-            "grammar": data.get("grammar",[]),
-            "vocabulary": data.get("vocabulary",[]),
+            "grammar": _normalize_grammar_list(data.get("grammar", [])),
+            "vocabulary": _normalize_vocab_list(data.get("vocabulary", [])),
             "notes": data.get("notes","")
         }
     except Exception:
@@ -517,7 +572,7 @@ if st.session_state.selected_language == 'chinese' and st.session_state.detailed
             """, unsafe_allow_html=True)
 
         # 문법(다항목, HSK용 상세)
-        grammar_list = analysis.get("grammar", [])
+        grammar_list = _normalize_grammar_list(analysis.get("grammar", []))
         if grammar_list:
             st.markdown(f"""
             <div class="analysis-section">
@@ -525,9 +580,9 @@ if st.session_state.selected_language == 'chinese' and st.session_state.detailed
                 <div class="grammar-box">
             """, unsafe_allow_html=True)
             for g in grammar_list:
-                title = g.get("title","")
-                pattern = g.get("pattern","")
-                exp = g.get("explanation_ko","")
+                title = g.get("title","문법 포인트")
+                pattern = g.get("pattern","확인 불가")
+                exp = g.get("explanation_ko","확인 불가")
                 st.markdown(f"<div><strong>{title}</strong> — <code>{pattern}</code><br>{exp}</div>", unsafe_allow_html=True)
                 exs = g.get("examples",[])
                 if exs:
@@ -543,7 +598,7 @@ if st.session_state.selected_language == 'chinese' and st.session_state.detailed
             st.markdown("</div></div>", unsafe_allow_html=True)
 
         # 어휘 노트(품사/HSK/콜로케이션/예문)
-        vocab_list = analysis.get("vocabulary", [])
+        vocab_list = _normalize_vocab_list(analysis.get("vocabulary", []))
         if vocab_list:
             st.markdown('<div class="analysis-section">', unsafe_allow_html=True)
             st.markdown('<div class="analysis-label">词汇笔记 (어휘 노트)</div>', unsafe_allow_html=True)
@@ -568,7 +623,7 @@ if st.session_state.selected_language == 'chinese' and st.session_state.detailed
             st.markdown(vocab_html, unsafe_allow_html=True)
             st.markdown('</div>', unsafe_allow_html=True)
 
-        # 추가 설명(H...SK 팁)
+        # 추가 설명(HSK 팁)
         notes = analysis.get("notes")
         if notes:
             st.markdown(f"""
@@ -578,7 +633,7 @@ if st.session_state.selected_language == 'chinese' and st.session_state.detailed
             </div>
             """, unsafe_allow_html=True)
 
-        # 사용자 피드백(보라 박스, 더 작게 + 대안/유의어 포함)
+        # 사용자 피드백(보라 박스, 더 작게 + 대안/유의어/교정 포함)
         if analysis.get('feedback'):
             fdb = analysis['feedback']
             st.markdown("""
