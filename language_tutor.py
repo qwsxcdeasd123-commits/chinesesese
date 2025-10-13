@@ -534,6 +534,25 @@ def _merge_vocab_no_dup(primary_list, extra_list):
             out.append(v)
             seen.add(w)
     return out
+    
+    def build_full_vocab_from_conversation(messages):
+    """
+    대화 전체(사용자+튜터)의 content를 합쳐 '전수 단어장'을 생성.
+    기존의 build_full_vocab_exhaustive(assistant_text) 파이프라인을 재사용.
+    """
+    texts = []
+    for m in messages:
+        if not isinstance(m, dict):
+            continue
+        c = m.get("content", "")
+        if isinstance(c, str) and c.strip():
+            texts.append(c.strip())
+    convo_text = " ".join(texts)
+    try:
+        # 이미 구현된 전수 파이프라인 사용(이전 답변에서 추가한 함수)
+        return build_full_vocab_exhaustive(convo_text)
+    except Exception:
+        return []
 
 def _uniq_keep_order(seq):
     seen = set()
@@ -832,6 +851,44 @@ if st.session_state.selected_language == 'chinese' and st.session_state.detailed
             vocab_html += "</div></div>"
             st.markdown(vocab_html, unsafe_allow_html=True)
 
+        # '단어장' 섹션(대화 전수)
+vocab_full = analysis.get("vocab_full", [])
+if vocab_full:
+    import textwrap
+    dict_html = textwrap.dedent("""
+    <div class="analysis-section">
+      <div class="analysis-label">단어장 (대화 전수)</div>
+      <div class="vocabulary-box">
+    """)
+    for v in vocab_full:
+        word = v.get('word','')
+        pinyin = v.get('pinyin','')
+        pos = v.get('pos','확인 불가')
+        hsk = v.get('hsk_level','확인 불가')
+        mean = v.get('meaning_ko','확인 불가')
+        syns = v.get('synonyms',[]) or []
+        cols = v.get('collocations',[]) or []
+        ex   = v.get('example',{}) or {}
+        ex_cn = ex.get('cn',''); ex_py = ex.get('pinyin',''); ex_ko = ex.get('ko','')
+
+        dict_html += (
+            f"<div style='margin-bottom:0.5rem;'>"
+            f"<strong>{word}</strong> ({pinyin}) — {pos} / HSK {hsk}<br>"
+            f"{mean}<br>"
+        )
+        if syns:
+            dict_html += f"<div style='margin-top:0.25rem;'>유의어: {', '.join(syns)}</div>"
+        if cols:
+            dict_html += f"<div>결합: {', '.join(cols)}</div>"
+        if ex_cn or ex_py or ex_ko:
+            dict_html += (
+                f"<div>예문: {ex_cn} <span style='color:#888'>({ex_py})</span>"
+                f"{' — ' + ex_ko if ex_ko else ''}</div>"
+            )
+        dict_html += "</div>"  # item 닫기
+    dict_html += "</div></div>"  # vocabulary-box / analysis-section 닫기
+    st.markdown(dict_html, unsafe_allow_html=True)
+
         # 추가 설명
         notes = analysis.get("notes")
         if notes:
@@ -919,6 +976,8 @@ if st.session_state.is_loading and len(st.session_state.messages) > 0 and st.ses
         if st.session_state.selected_language == 'chinese':
             analysis_core = analyze_assistant_output(reply_text)
             analysis_core['feedback'] = generate_user_feedback(user_msg)
+            vocab_full_all = build_full_vocab_from_conversation(st.session_state.messages)
+            analysis_core['vocab_full'] = vocab_full_all  # '단어장' 섹션용 전체 단어
             # 튜터 문장에 등장한 모든 단어를 추가로 수집하여 병합
             _full_vocab = build_full_vocab_exhaustive(reply_text)
             analysis_core['vocabulary'] = _merge_vocab_no_dup(analysis_core.get('vocabulary', []), _full_vocab)
