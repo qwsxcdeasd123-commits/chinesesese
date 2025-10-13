@@ -20,10 +20,26 @@ st.markdown("""
         max-width: 100%;
     }
     
+    /* 헤더 숨기기 */
+    header {visibility: hidden;}
+    .stDeployButton {display: none;}
+    footer {visibility: hidden;}
+    
     /* 모바일 반응형 */
     @media (max-width: 768px) {
         [data-testid="stSidebar"] {
-            display: none !important;
+            position: fixed;
+            right: -100%;
+            top: 0;
+            height: 100vh;
+            width: 80%;
+            transition: right 0.3s ease;
+            z-index: 1000;
+            box-shadow: -2px 0 8px rgba(0,0,0,0.2);
+        }
+        
+        [data-testid="stSidebar"][data-testid="stSidebar--open"] {
+            right: 0;
         }
         
         .wechat-header {
@@ -32,30 +48,41 @@ st.markdown("""
         }
         
         .main .block-container {
-            padding: 1rem !important;
+            padding: 0.5rem !important;
             max-width: 100% !important;
+        }
+        
+        .settings-toggle {
+            display: block !important;
+            position: fixed;
+            top: 15px;
+            right: 15px;
+            z-index: 999;
+            background: rgba(255,255,255,0.9);
+            padding: 8px 12px;
+            border-radius: 20px;
+            font-size: 20px;
+            cursor: pointer;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
         }
     }
     
-    /* 헤더 숨기기 */
-    header {visibility: hidden;}
-    .stDeployButton {display: none;}
+    @media (min-width: 769px) {
+        .settings-toggle {
+            display: none;
+        }
+    }
     
-    /* 사이드바 항상 표시 및 스타일 */
+    /* 사이드바 스타일 */
     [data-testid="stSidebar"] {
         background-color: #f7f7f7;
-        border-right: 2px solid #d0d0d0;
+        border-left: 2px solid #d0d0d0;
         min-width: 280px;
         max-width: 320px;
     }
     
     [data-testid="stSidebar"] > div:first-child {
         background-color: #f7f7f7;
-    }
-    
-    /* 사이드바 닫기 버튼 숨기기 */
-    [data-testid="collapsedControl"] {
-        display: none;
     }
     
     /* WeChat 헤더 */
@@ -66,13 +93,33 @@ st.markdown("""
         border-radius: 0;
         margin: -1rem -1rem 1rem -1rem;
         box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        position: sticky;
+        top: 0;
+        z-index: 100;
     }
     
     /* 메인 컨테이너 */
     .main .block-container {
-        padding-top: 2rem;
-        padding-bottom: 5rem;
+        padding-top: 1rem;
+        padding-bottom: 6rem;
         max-width: 100%;
+    }
+    
+    /* 메시지 컨테이너 */
+    .msg-container {
+        display: flex;
+        margin: 12px 0;
+        align-items: flex-start;
+    }
+    
+    .msg-container.user {
+        justify-content: flex-end;
+        flex-direction: row-reverse;
+    }
+    
+    .msg-container.assistant {
+        justify-content: flex-start;
+        flex-direction: row;
     }
     
     /* 사용자 메시지 - WeChat 녹색 */
@@ -81,7 +128,6 @@ st.markdown("""
         color: #000;
         padding: 10px 14px;
         border-radius: 8px;
-        margin: 8px 10px 8px auto;
         text-align: left;
         position: relative;
         word-wrap: break-word;
@@ -92,7 +138,7 @@ st.markdown("""
         display: inline-block;
     }
     
-    .user-message::before {
+    .user-message::after {
         content: '';
         position: absolute;
         right: -8px;
@@ -110,7 +156,6 @@ st.markdown("""
         color: #000;
         padding: 10px 14px;
         border-radius: 8px;
-        margin: 8px auto 8px 10px;
         text-align: left;
         position: relative;
         word-wrap: break-word;
@@ -158,7 +203,7 @@ st.markdown("""
         border-left: 3px solid #09b83e;
     }
     
-    /* 분석 패널 - WeChat 스타일 */
+    /* 분석 패널 */
     .analysis-box {
         background-color: #f7f7f7;
         padding: 12px;
@@ -176,7 +221,7 @@ st.markdown("""
         box-shadow: 0 1px 2px rgba(0,0,0,0.05);
     }
     
-    /* 버튼 - WeChat 그린 */
+    /* 버튼 */
     .stButton button {
         width: 100%;
         border-radius: 6px;
@@ -191,7 +236,7 @@ st.markdown("""
         background-color: #0aa146;
     }
     
-    /* 입력창 - WeChat 스타일 */
+    /* 입력창 */
     .stTextInput input {
         border-radius: 6px;
         padding: 12px 15px;
@@ -214,11 +259,11 @@ st.markdown("""
     
     @media (min-width: 769px) {
         .input-area {
-            left: 320px;
+            right: 320px;
         }
     }
     
-    /* Expander - WeChat 스타일 */
+    /* Expander */
     .streamlit-expanderHeader {
         background-color: white;
         border-radius: 8px;
@@ -244,6 +289,8 @@ if 'show_translation' not in st.session_state:
     st.session_state.show_translation = {}
 if 'current_analysis' not in st.session_state:
     st.session_state.current_analysis = None
+if 'last_input' not in st.session_state:
+    st.session_state.last_input = ""
 
 # 언어 설정
 LANGUAGES = {
@@ -560,7 +607,9 @@ else:
     st.markdown("</div>", unsafe_allow_html=True)
     
     # 메시지 전송
-    if (send_button or user_input) and user_input:
+    if user_input and (send_button or user_input != st.session_state.get('last_input', '')):
+        st.session_state.last_input = user_input
+        
         # 사용자 메시지 추가
         st.session_state.messages.append({"role": "user", "content": user_input})
         
@@ -581,3 +630,19 @@ else:
             st.session_state.current_analysis = analyze_chinese(ai_response, st.session_state.api_key)
         
         st.rerun()
+
+# JavaScript로 Enter 키 처리
+st.markdown("""
+<script>
+document.addEventListener('keydown', function(e) {
+    if (e.key === 'Enter' && !e.shiftKey) {
+        const input = document.querySelector('input[aria-label="메시지 입력"]');
+        if (input && input.value) {
+            e.preventDefault();
+            const button = Array.from(document.querySelectorAll('button')).find(btn => btn.textContent === '💬');
+            if (button) button.click();
+        }
+    }
+});
+</script>
+""", unsafe_allow_html=True)
