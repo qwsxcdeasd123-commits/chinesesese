@@ -769,24 +769,38 @@ if st.session_state.selected_language == 'chinese' and st.session_state.detailed
         
         # 사용자 피드백 추가
         if analysis.get('feedback'):
-            st.markdown(f"""
+            feedback = analysis['feedback']
+            st.markdown("""
             <div class="analysis-section">
                 <div class="analysis-label">您的反馈 (사용자 피드백)</div>
                 <div class="feedback-box">
-                    <div style="margin-bottom: 0.5rem;"><strong>表现 (표현):</strong> {analysis['feedback'].get('expression', 'N/A')}</div>
-                    <div style="color: #666; font-size: 0.75rem; margin-left: 1rem; margin-bottom: 0.75rem;">[한글] 자연스러운 표현을 사용하셨습니다</div>
-                    
-                    <div style="margin-bottom: 0.5rem;"><strong>语法 (문법):</strong> {analysis['feedback'].get('grammar', 'N/A')}</div>
-                    <div style="color: #666; font-size: 0.75rem; margin-left: 1rem; margin-bottom: 0.75rem;">[한글] 문법이 정확합니다</div>
-                    
-                    <div style="margin-bottom: 0.5rem;"><strong>语境 (맥락):</strong> {analysis['feedback'].get('context', 'N/A')}</div>
-                    <div style="color: #666; font-size: 0.75rem; margin-left: 1rem; margin-bottom: 0.75rem;">[한글] 상황에 적절한 표현입니다</div>
-                    
-                    <div style="margin-bottom: 0.5rem;"><strong>单词选择 (단어 선택):</strong> {analysis['feedback'].get('word_choice', 'N/A')}</div>
-                    <div style="color: #666; font-size: 0.75rem; margin-left: 1rem;">[한글] 적절한 어휘를 선택하셨습니다</div>
-                </div>
-            </div>
             """, unsafe_allow_html=True)
+            
+            # 표현
+            st.markdown(f"""
+                <div style="margin-bottom: 0.5rem;"><strong>表现 (표현):</strong> {feedback.get('expression', 'N/A')}</div>
+                <div style="color: #666; font-size: 0.75rem; margin-left: 1rem; margin-bottom: 0.75rem;">[한글] 자연스러운 표현을 사용하셨습니다</div>
+            """, unsafe_allow_html=True)
+            
+            # 문법
+            st.markdown(f"""
+                <div style="margin-bottom: 0.5rem;"><strong>语法 (문법):</strong> {feedback.get('grammar_feedback', 'N/A')}</div>
+                <div style="color: #666; font-size: 0.75rem; margin-left: 1rem; margin-bottom: 0.75rem;">[한글] 문법이 정확합니다</div>
+            """, unsafe_allow_html=True)
+            
+            # 맥락
+            st.markdown(f"""
+                <div style="margin-bottom: 0.5rem;"><strong>语境 (맥락):</strong> {feedback.get('context', 'N/A')}</div>
+                <div style="color: #666; font-size: 0.75rem; margin-left: 1rem; margin-bottom: 0.75rem;">[한글] 상황에 적절한 표현입니다</div>
+            """, unsafe_allow_html=True)
+            
+            # 단어 선택
+            st.markdown(f"""
+                <div style="margin-bottom: 0.5rem;"><strong>单词选择 (단어 선택):</strong> {feedback.get('word_choice', 'N/A')}</div>
+                <div style="color: #666; font-size: 0.75rem; margin-left: 1rem;">[한글] 적절한 어휘를 선택하셨습니다</div>
+            """, unsafe_allow_html=True)
+            
+            st.markdown("</div></div>", unsafe_allow_html=True)
 
 # 메시지 전송 처리
 if send_button and user_input.strip():
@@ -838,7 +852,7 @@ if st.session_state.is_loading and len(st.session_state.messages) > 0 and st.ses
             'notes': "这是标准的中文问候语，适合初次见面使用。",
             'feedback': {
                 'expression': f"您说的'{user_msg}'很自然！",
-                'grammar': "语法结构正确，使用了合适的时态和语序。",
+                'grammar_feedback': "语法结构正确，使用了合适的时态和语序。",
                 'context': "在这种情况下使用这个表达非常合适。",
                 'word_choice': "词汇选择恰当，符合中文母语者的表达习惯。"
             }
