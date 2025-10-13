@@ -535,10 +535,10 @@ def _merge_vocab_no_dup(primary_list, extra_list):
             seen.add(w)
     return out
     
-    def build_full_vocab_from_conversation(messages):
+def build_full_vocab_from_conversation(messages):
     """
-    대화 전체(사용자+튜터)의 content를 합쳐 '전수 단어장'을 생성.
-    기존의 build_full_vocab_exhaustive(assistant_text) 파이프라인을 재사용.
+    대화 전체(사용자+튜터)의 content를 합쳐 '전수 단어장'을 생성한다.
+    내부적으로 build_full_vocab_exhaustive(convo_text)를 호출한다.
     """
     texts = []
     for m in messages:
@@ -547,9 +547,9 @@ def _merge_vocab_no_dup(primary_list, extra_list):
         c = m.get("content", "")
         if isinstance(c, str) and c.strip():
             texts.append(c.strip())
+
     convo_text = " ".join(texts)
     try:
-        # 이미 구현된 전수 파이프라인 사용(이전 답변에서 추가한 함수)
         return build_full_vocab_exhaustive(convo_text)
     except Exception:
         return []
