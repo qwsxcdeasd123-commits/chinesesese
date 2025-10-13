@@ -86,7 +86,10 @@ st.markdown("""
 if 'messages' not in st.session_state:
     st.session_state.messages = []
 if 'api_key' not in st.session_state:
-    st.session_state.api_key = ''
+    try:
+        st.session_state.api_key = st.secrets.get("ANTHROPIC_API_KEY", "")
+    except:
+        st.session_state.api_key = ""
 if 'language' not in st.session_state:
     st.session_state.language = 'chinese'
 if 'proficiency' not in st.session_state:
@@ -241,15 +244,18 @@ st.markdown(f"""
 with st.sidebar:
     st.header("⚙️ 설정")
     
-    # API 키 입력
+    # API 키 입력 (Secrets에 없을 경우에만 표시)
+    if not st.session_state.api_key:
     api_key = st.text_input(
         "Anthropic API Key",
         type="password",
-        value=st.session_state.api_key,
+        value="",
         help="https://console.anthropic.com/settings/keys 에서 발급"
     )
     if api_key:
         st.session_state.api_key = api_key
+    else:
+    st.success("✅ API Key 설정됨")
     
     st.divider()
     
