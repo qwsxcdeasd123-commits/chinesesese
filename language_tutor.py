@@ -39,6 +39,7 @@ st.markdown("""
     /* 높이 약 3배 확대 */
         min-height: 9rem; /* 기존 padding: 1rem → 높이 약 3배 수준 */
         padding: 0 1rem;  /* 위아래 여백 제거, 좌우 여백만 유지 */
+        padding-bottom: 1rem; /* 아래쪽 여백 추가 */
     
     /* 내용 하단 정렬 */
         display: flex;
@@ -50,13 +51,12 @@ st.markdown("""
         box-shadow: 0 1px 3px rgba(0,0,0,0.12);
     }
 
-    
     .header-title {
         font-size: 1.125rem;
         font-weight: 500;
         display: flex;
         align-items: center;
-        gap: 0.5rem;
+        gap: 0.1rem;
     }
     
     /* 메시지 영역 배경 */
