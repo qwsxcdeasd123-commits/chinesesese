@@ -4,7 +4,6 @@ import time
 from datetime import datetime
 import os
 import textwrap
-import re  
 
 # ==================== Anthropic 설정 ====================
 try:
@@ -495,206 +494,6 @@ def _normalize_vocab_list(raw):
             })
     return out
 
-def extract_full_vocab_from_text(assistant_text: str):
-    """
-    튜터 발화에 등장한 모든 고유 단어(중복 제거)를 추출해
-    HSK 학습용 상세 필드로 반환한다.
-    반환 형식: [{word, pinyin, pos, hsk_level, meaning_ko, synonyms, collocations, example:{cn,pinyin,ko}}]
-    """
-    system_prompt = (
-        "역할: 중국어 어휘 추출기. 출력은 반드시 JSON만.\n"
-        "규칙:\n"
-        "- 입력 문장에서 등장한 고유 단어(중복 제거)를 모두 추출.\n"
-        "- 각 단어에 대해 다음 필드를 채움:\n"
-        "  word, pinyin, pos, hsk_level, meaning_ko, synonyms, collocations, example{cn,pinyin,ko}\n"
-        "- 동형어/변형은 대표 표제어 기준으로 1개만.\n"
-        "- 불확실하면 '확인 불가'로 기입.\n"
-        "- 한국어 뜻은 간결·정확하게.\n"
-        "- JSON 키는 소문자 스네이크케이스 유지."
-    )
-    user_prompt = (
-        "다음 중국어 튜터 발화에서 등장한 모든 단어를 추출하여 학습용 어휘 목록을 만들어라.\n"
-        "반환 형식은 JSON 배열만 허용.\n"
-        f"[튜터 발화]\n{assistant_text}"
-    )
-    raw = _claude(messages=[{"role":"user","content":user_prompt}], system=system_prompt, max_tokens=1400, temperature=0)
-    try:
-        data = json.loads(raw)
-        return _normalize_vocab_list(data if isinstance(data, list) else [])
-    except Exception:
-        return []
-
-def _merge_vocab_no_dup(primary_list, extra_list):
-    """word 기준 중복 없이 병합"""
-    seen = { (v.get("word") or "").strip() for v in primary_list }
-    out = list(primary_list)
-    for v in extra_list:
-        w = (v.get("word") or "").strip()
-        if w and w not in seen:
-            out.append(v)
-            seen.add(w)
-    return out
-    
-def build_full_vocab_from_conversation(messages):
-    """
-    대화 전체(사용자+튜터)의 content를 합쳐 '전수 단어장'을 생성한다.
-    내부적으로 build_full_vocab_exhaustive(convo_text)를 호출한다.
-    """
-    texts = []
-    for m in messages:
-        if not isinstance(m, dict):
-            continue
-        c = m.get("content", "")
-        if isinstance(c, str) and c.strip():
-            texts.append(c.strip())
-
-    convo_text = " ".join(texts)
-    try:
-        return build_full_vocab_exhaustive(convo_text)
-    except Exception:
-        return []
-
-def _uniq_keep_order(seq):
-    seen = set()
-    out = []
-    for x in seq:
-        if x not in seen:
-            out.append(x); seen.add(x)
-    return out
-
-def extract_vocab_list_all_tokens(assistant_text: str):
-    """
-    단계 A: '모든' 단어/표현 후보를 전수 수집(기능어, 양사, 접속사, 고유명사, 다어절 표현 포함).
-    반환: 표제어 리스트(list[str])
-    """
-    system_prompt = (
-        "역할: 중국어 어휘 추출기(전수 모드). 출력은 반드시 JSON 배열만.\n"
-        "요구사항:\n"
-        "- 입력 중국어 텍스트에서 등장한 모든 어휘 항목을 빠짐없이 나열.\n"
-        "- 단어, 기능어(了, 的, 吧 등), 양사, 접속사, 고유명사, 다어절 고정표현까지 포함.\n"
-        "- 중복은 제거하되 표제어(기본형) 기준으로 수록. 공백·설명 금지.\n"
-        "- JSON 배열에 문자열만(예: [\"为了\", \"请问\", \"学习伙伴\", ...])."
-    )
-    user_prompt = (
-        "다음 텍스트에서 등장한 모든 어휘 항목을 전수 추출하여 JSON 배열로 반환하라.\n"
-        f"[텍스트]\n{assistant_text}"
-    )
-    raw = _claude(
-        messages=[{"role":"user","content":user_prompt}],
-        system=system_prompt,
-        max_tokens=2000,
-        temperature=0
-    )
-    try:
-        data = json.loads(raw)
-        if not isinstance(data, list):
-            return []
-        # 문자열만 남기고, 공백 제거 후 순서 유지 중복 제거
-        words = [str(x).strip() for x in data if isinstance(x, (str, int, float))]
-        words = [w for w in words if w]
-        return _uniq_keep_order(words)
-    except Exception:
-        return []
-
-def enrich_vocab_details_in_batches(words, batch_size: int = 30):
-    """
-    단계 B: 표제어 목록을 배치로 받아 상세 필드 채움.
-    반환: [{word, pinyin, pos, hsk_level, meaning_ko, synonyms, collocations, example{cn,pinyin,ko}}]
-    """
-    all_items = []
-    for i in range(0, len(words), batch_size):
-        batch = words[i:i+batch_size]
-        system_prompt = (
-            "역할: 중국어 어휘 해설기. 출력은 반드시 JSON 배열만.\n"
-            "각 항목 필수 키:\n"
-            "- word, pinyin, pos, hsk_level, meaning_ko,\n"
-            "- synonyms(최대 5개), collocations(최대 5개),\n"
-            "- example{cn, pinyin, ko}\n"
-            "불확실하면 '확인 불가'. 한국어 뜻은 간결·정확."
-        )
-        user_prompt = (
-            "다음 표제어 목록에 대해 각 항목의 상세 정보를 채워 JSON 배열로 반환하라.\n"
-            f"[표제어]\n{json.dumps(batch, ensure_ascii=False)}"
-        )
-        raw = _claude(
-            messages=[{"role":"user","content":user_prompt}],
-            system=system_prompt,
-            max_tokens=2200,   # 배치로 충분히 크게
-            temperature=0
-        )
-        try:
-            data = json.loads(raw)
-            items = _normalize_vocab_list(data if isinstance(data, list) else [])
-            all_items = _merge_vocab_no_dup(all_items, items)
-        except Exception:
-            # 이 배치는 스킵, 다음 배치 진행
-            continue
-    return all_items
-
-def build_full_vocab_exhaustive(assistant_text: str):
-    """
-    통합 파이프라인: 전수 표제어 추출 → 배치 상세 보강 → (기존 분석 결과와) 병합용 반환
-    """
-    headwords = extract_vocab_list_all_tokens(assistant_text)
-    if not headwords:
-        return []
-    return enrich_vocab_details_in_batches(headwords)
-
-def extract_full_vocab_exhaustive(assistant_text: str):
-    """
-    튜터 발화 전문을 문장/조각으로 분할해 구간별로 단어를 모두 추출한 뒤 병합.
-    누락을 줄이기 위한 '철저 추출' 모드.
-    """
-    # 1) 문장 분할
-    parts = [p.strip() for p in re.split(r"[。！？!?\n]+", assistant_text) if p.strip()]
-
-    merged = []
-    buf = ""
-    CHUNK_LIMIT = 120  # 너무 길면 모델이 누락시키므로 적당히 쪼갬
-
-    def _flush(chunk):
-        nonlocal merged
-        if not chunk.strip():
-            return
-        system_prompt = (
-            "역할: 중국어 어휘 추출기(철저 모드). 출력은 반드시 JSON 배열만.\n"
-            "요구사항:\n"
-            "- 이 입력 조각에서 등장한 '모든' 단어(표제어 기준)를 빠짐없이 수집.\n"
-            "- 기능어·양사·고유명사·다어절 표현까지 포함. 중복 제거.\n"
-            "- 각 항목 키: word, pinyin, pos, hsk_level, meaning_ko, synonyms, collocations, example{cn,pinyin,ko}\n"
-            "- 불확실하면 '확인 불가' 표기. 한국어 뜻은 간결·정확.\n"
-            "- JSON만 출력(설명·문장 금지)."
-        )
-        user_prompt = (
-            "다음 중국어 텍스트에서 등장하는 모든 단어를 빠짐없이 추출하라.\n"
-            "반환: JSON 배열만.\n"
-            f"[텍스트]\n{chunk}"
-        )
-        raw = _claude(
-            messages=[{"role": "user", "content": user_prompt}],
-            system=system_prompt,
-            max_tokens=2000,
-            temperature=0
-        )
-        try:
-            data = json.loads(raw)
-            vocab_list = _normalize_vocab_list(data if isinstance(data, list) else [])
-            nonlocal merged
-            merged = _merge_vocab_no_dup(merged, vocab_list)
-        except Exception:
-            pass  # 조각 하나 실패해도 전체는 계속
-
-    # 2) 길이 기반 버퍼링하여 호출
-    for p in parts:
-        if len(buf) + len(p) + 1 <= CHUNK_LIMIT:
-            buf = (buf + " " + p).strip()
-        else:
-            _flush(buf)
-            buf = p
-    _flush(buf)  # 마지막 조각
-
-    return merged
-
 # -------- 상세분석(튜터 발화 기준) & 사용자 피드백(학습자 발화 기준) ----------
 def analyze_assistant_output(assistant_text: str):
     system_prompt = (
@@ -823,86 +622,43 @@ if st.session_state.selected_language == 'chinese' and st.session_state.detailed
 
                 st.markdown(grammar_html, unsafe_allow_html=True)
 
-            # 어휘 노트 (기존 렌더링 유지)
+
+        # 어휘 노트
         vocab_list = _normalize_vocab_list(analysis.get("vocabulary", []))
         if vocab_list:
-            import textwrap
-            vocab_html = textwrap.dedent("""
+            vocab_html = """
             <div class="analysis-section">
               <div class="analysis-label">词汇笔记 (어휘 노트)</div>
               <div class="vocabulary-box">
-            """)
+            """
             for v in vocab_list:
                 vocab_html += (
                     f"<div style='margin-bottom:0.5rem;'>"
                     f"<strong>{v.get('word','')}</strong> ({v.get('pinyin','')}) — {v.get('pos','')} / HSK {v.get('hsk_level','확인 불가')}<br>"
                     f"{v.get('meaning_ko','')}<br>"
                 )
-                syns = v.get("synonyms",[]) or []
-                cols = v.get("collocations",[]) or []
-                ex   = v.get("example",{}) or {}
+                syns = v.get("synonyms",[])
                 if syns:
                     vocab_html += f"<div style='margin-top:0.25rem;'>유의어: {', '.join(syns)}</div>"
+                cols = v.get("collocations",[])
                 if cols:
                     vocab_html += f"<div>결합: {', '.join(cols)}</div>"
+                ex = v.get("example",{})
                 if ex:
-                    vocab_html += (
-                        f"<div>예문: {ex.get('cn','')} "
-                        f"<span style='color:#888'>({ex.get('pinyin','')})</span>"
-                        f"{' — ' + ex.get('ko','') if ex.get('ko','') else ''}</div>"
-                    )
+                    vocab_html += f"<div>예문: {ex.get('cn','')} <span style='color:#888'>({ex.get('pinyin','')})</span> — {ex.get('ko','')}</div>"
                 vocab_html += "</div>"
             vocab_html += "</div></div>"
             st.markdown(vocab_html, unsafe_allow_html=True)
 
-        # 단어장 (대화 전수)
-        vocab_full = analysis.get("vocab_full", [])
-        if vocab_full:
-            import textwrap
-            dict_html = textwrap.dedent("""
-            <div class="analysis-section">
-              <div class="analysis-label">단어장 (대화 전수)</div>
-              <div class="vocabulary-box">
-            """)
-            for v in vocab_full:
-                word = v.get('word','')
-                pinyin = v.get('pinyin','')
-                pos = v.get('pos','확인 불가')
-                hsk = v.get('hsk_level','확인 불가')
-                mean = v.get('meaning_ko','확인 불가')
-                syns = v.get('synonyms',[]) or []
-                cols = v.get('collocations',[]) or []
-                ex   = v.get('example',{}) or {}
-                dict_html += (
-                    f"<div style='margin-bottom:0.5rem;'>"
-                    f"<strong>{word}</strong> ({pinyin}) — {pos} / HSK {hsk}<br>"
-                    f"{mean}<br>"
-                )
-                if syns:
-                    dict_html += f"<div style='margin-top:0.25rem;'>유의어: {', '.join(syns)}</div>"
-                if cols:
-                    dict_html += f"<div>결합: {', '.join(cols)}</div>"
-                if ex:
-                    dict_html += (
-                        f"<div>예문: {ex.get('cn','')} "
-                        f"<span style='color:#888'>({ex.get('pinyin','')})</span>"
-                        f"{' — ' + ex.get('ko','') if ex.get('ko','') else ''}</div>"
-                    )
-                dict_html += "</div>"
-            dict_html += "</div></div>"
-            st.markdown(dict_html, unsafe_allow_html=True)
-
-        # 추가 설명 (notes)
+        # 추가 설명
         notes = analysis.get("notes")
         if notes:
-            import textwrap
-            notes_html = textwrap.dedent(f"""
+            st.markdown(f"""
             <div class="analysis-section">
                 <div class="analysis-label">附加说明 (추가 설명 · HSK 대비)</div>
                 <div class="notes-box">{notes}</div>
             </div>
-            """)
-            st.markdown(notes_html, unsafe_allow_html=True)
+            """, unsafe_allow_html=True)
 
         # 사용자 피드백(단일 HTML로 묶기)
         if analysis.get('feedback'):
@@ -981,16 +737,9 @@ if st.session_state.is_loading and len(st.session_state.messages) > 0 and st.ses
         if st.session_state.selected_language == 'chinese':
             analysis_core = analyze_assistant_output(reply_text)
             analysis_core['feedback'] = generate_user_feedback(user_msg)
-            vocab_full_all = build_full_vocab_from_conversation(st.session_state.messages)
-            analysis_core['vocab_full'] = vocab_full_all  # '단어장' 섹션용 전체 단어
-            # 튜터 문장에 등장한 모든 단어를 추가로 수집하여 병합
-            _full_vocab = build_full_vocab_exhaustive(reply_text)
-            analysis_core['vocabulary'] = _merge_vocab_no_dup(analysis_core.get('vocabulary', []), _full_vocab)
-
             st.session_state.detailed_analysis = analysis_core
         else:
             st.session_state.detailed_analysis = None
-            
 
     except Exception as e:
         st.session_state.messages.append({'role': 'assistant','content': f"[오류] LLM 호출 실패: {e}"})
