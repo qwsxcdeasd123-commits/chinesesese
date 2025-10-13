@@ -823,84 +823,86 @@ if st.session_state.selected_language == 'chinese' and st.session_state.detailed
 
                 st.markdown(grammar_html, unsafe_allow_html=True)
 
-
-        # 어휘 노트
+            # 어휘 노트 (기존 렌더링 유지)
         vocab_list = _normalize_vocab_list(analysis.get("vocabulary", []))
         if vocab_list:
-            vocab_html = """
+            import textwrap
+            vocab_html = textwrap.dedent("""
             <div class="analysis-section">
               <div class="analysis-label">词汇笔记 (어휘 노트)</div>
               <div class="vocabulary-box">
-            """
+            """)
             for v in vocab_list:
                 vocab_html += (
                     f"<div style='margin-bottom:0.5rem;'>"
                     f"<strong>{v.get('word','')}</strong> ({v.get('pinyin','')}) — {v.get('pos','')} / HSK {v.get('hsk_level','확인 불가')}<br>"
                     f"{v.get('meaning_ko','')}<br>"
                 )
-                syns = v.get("synonyms",[])
+                syns = v.get("synonyms",[]) or []
+                cols = v.get("collocations",[]) or []
+                ex   = v.get("example",{}) or {}
                 if syns:
                     vocab_html += f"<div style='margin-top:0.25rem;'>유의어: {', '.join(syns)}</div>"
-                cols = v.get("collocations",[])
                 if cols:
                     vocab_html += f"<div>결합: {', '.join(cols)}</div>"
-                ex = v.get("example",{})
                 if ex:
-                    vocab_html += f"<div>예문: {ex.get('cn','')} <span style='color:#888'>({ex.get('pinyin','')})</span> — {ex.get('ko','')}</div>"
+                    vocab_html += (
+                        f"<div>예문: {ex.get('cn','')} "
+                        f"<span style='color:#888'>({ex.get('pinyin','')})</span>"
+                        f"{' — ' + ex.get('ko','') if ex.get('ko','') else ''}</div>"
+                    )
                 vocab_html += "</div>"
             vocab_html += "</div></div>"
             st.markdown(vocab_html, unsafe_allow_html=True)
 
-        # '단어장' 섹션(대화 전수)
-vocab_full = analysis.get("vocab_full", [])
-if vocab_full:
-    import textwrap
-    dict_html = textwrap.dedent("""
-    <div class="analysis-section">
-      <div class="analysis-label">단어장 (대화 전수)</div>
-      <div class="vocabulary-box">
-    """)
-    for v in vocab_full:
-        word = v.get('word','')
-        pinyin = v.get('pinyin','')
-        pos = v.get('pos','확인 불가')
-        hsk = v.get('hsk_level','확인 불가')
-        mean = v.get('meaning_ko','확인 불가')
-        syns = v.get('synonyms',[]) or []
-        cols = v.get('collocations',[]) or []
-        ex   = v.get('example',{}) or {}
-        ex_cn = ex.get('cn',''); ex_py = ex.get('pinyin',''); ex_ko = ex.get('ko','')
-
-        dict_html += (
-            f"<div style='margin-bottom:0.5rem;'>"
-            f"<strong>{word}</strong> ({pinyin}) — {pos} / HSK {hsk}<br>"
-            f"{mean}<br>"
-        )
-        if syns:
-            dict_html += f"<div style='margin-top:0.25rem;'>유의어: {', '.join(syns)}</div>"
-        if cols:
-            dict_html += f"<div>결합: {', '.join(cols)}</div>"
-        if ex_cn or ex_py or ex_ko:
-            dict_html += (
-                f"<div>예문: {ex_cn} <span style='color:#888'>({ex_py})</span>"
-                f"{' — ' + ex_ko if ex_ko else ''}</div>"
-            )
-        dict_html += "</div>"  # item 닫기
-    dict_html += "</div></div>"  # vocabulary-box / analysis-section 닫기
-    st.markdown(dict_html, unsafe_allow_html=True)
+        # 단어장 (대화 전수)
+        vocab_full = analysis.get("vocab_full", [])
+        if vocab_full:
+            import textwrap
+            dict_html = textwrap.dedent("""
+            <div class="analysis-section">
+              <div class="analysis-label">단어장 (대화 전수)</div>
+              <div class="vocabulary-box">
+            """)
+            for v in vocab_full:
+                word = v.get('word','')
+                pinyin = v.get('pinyin','')
+                pos = v.get('pos','확인 불가')
+                hsk = v.get('hsk_level','확인 불가')
+                mean = v.get('meaning_ko','확인 불가')
+                syns = v.get('synonyms',[]) or []
+                cols = v.get('collocations',[]) or []
+                ex   = v.get('example',{}) or {}
+                dict_html += (
+                    f"<div style='margin-bottom:0.5rem;'>"
+                    f"<strong>{word}</strong> ({pinyin}) — {pos} / HSK {hsk}<br>"
+                    f"{mean}<br>"
+                )
+                if syns:
+                    dict_html += f"<div style='margin-top:0.25rem;'>유의어: {', '.join(syns)}</div>"
+                if cols:
+                    dict_html += f"<div>결합: {', '.join(cols)}</div>"
+                if ex:
+                    dict_html += (
+                        f"<div>예문: {ex.get('cn','')} "
+                        f"<span style='color:#888'>({ex.get('pinyin','')})</span>"
+                        f"{' — ' + ex.get('ko','') if ex.get('ko','') else ''}</div>"
+                    )
+                dict_html += "</div>"
+            dict_html += "</div></div>"
+            st.markdown(dict_html, unsafe_allow_html=True)
 
         # 추가 설명 (notes)
         notes = analysis.get("notes")
         if notes:
-            st.markdown(
-                f"""
-                <div class="analysis-section">
-                    <div class="analysis-label">附加说明 (추가 설명 · HSK 대비)</div>
-                    <div class="notes-box">{notes}</div>
-                </div>
-                """,
-                unsafe_allow_html=True
-            )
+            import textwrap
+            notes_html = textwrap.dedent(f"""
+            <div class="analysis-section">
+                <div class="analysis-label">附加说明 (추가 설명 · HSK 대비)</div>
+                <div class="notes-box">{notes}</div>
+            </div>
+            """)
+            st.markdown(notes_html, unsafe_allow_html=True)
 
         # 사용자 피드백(단일 HTML로 묶기)
         if analysis.get('feedback'):
