@@ -27,7 +27,7 @@ st.markdown("""
     
     /* 블록 컨테이너 여백 최소화 */
     .block-container {
-        padding-top: 0.5rem !important;
+        padding-top: 0rem !important;
         padding-bottom: 0 !important;
         max-width: 100% !important;
     }
@@ -38,7 +38,7 @@ st.markdown("""
         color: white;
         padding: 1rem;
         border-radius: 0;
-        margin: -0.5rem -1rem 0.75cm -1rem;
+        margin: -1rem -1rem 0.5rem -1rem;
         box-shadow: 0 1px 3px rgba(0,0,0,0.12);
     }
     
@@ -304,14 +304,19 @@ st.markdown("""
         color: #999999;
     }
     
-    /* 메시지 토글 버튼 숨김 */
+    /* 메시지 토글 버튼 보이게 하되 투명하게 */
     .stButton > button:not([kind="primary"]) {
-        position: absolute;
-        opacity: 0;
-        pointer-events: none;
-        height: 0;
-        padding: 0;
-        margin: 0;
+        background: transparent !important;
+        border: none !important;
+        box-shadow: none !important;
+        padding: 0 !important;
+        height: 0 !important;
+        min-height: 0 !important;
+    }
+    
+    .stButton > button:not([kind="primary"]):hover {
+        background: transparent !important;
+        border: none !important;
     }
     
     /* 사이드바 - WeChat 스타일 */
@@ -657,19 +662,21 @@ else:
                 <div class="translation-toggle">{toggle_text}</div>
                 """
             
-            # 메시지 클릭 처리 - 번역 토글
-            if st.button(f"msg_{idx}", key=f"msg_btn_{idx}"):
+            # 메시지를 클릭 가능하게 만들기
+            st.markdown(f'<div class="assistant-message" onclick="window.location.reload()">{content}</div>', unsafe_allow_html=True)
+            
+            # 번역 토글 버튼 (보이지 않게)
+            if st.button(f"toggle_{idx}", key=f"msg_btn_{idx}"):
                 if 'translation' in msg:
                     st.session_state.show_translation[idx] = not show_trans
-                    st.rerun()
                 elif not is_translating:
                     st.session_state.translating_message_id = idx
-                    st.session_state.messages[idx]['translation'] = f"안녕하세요! 만나서 반갑습니다. 오늘 무엇에 대해 이야기하고 싶으세요?"
+                    # 간단한 번역 (실제로는 API 호출)
+                    st.session_state.messages[idx]['translation'] = "안녕하세요! 만나서 반갑습니다. 오늘 무엇에 대해 이야기하고 싶으세요?"
                     st.session_state.translating_message_id = None
                     st.session_state.show_translation[idx] = True
-                    st.rerun()
+                st.rerun()
             
-            st.markdown(f'<div class="assistant-message">{content}</div>', unsafe_allow_html=True)
             st.markdown('<div style="clear:both;"></div>', unsafe_allow_html=True)
     
     if st.session_state.is_loading:
