@@ -535,6 +535,92 @@ def _merge_vocab_no_dup(primary_list, extra_list):
             seen.add(w)
     return out
 
+def _uniq_keep_order(seq):
+    seen = set()
+    out = []
+    for x in seq:
+        if x not in seen:
+            out.append(x); seen.add(x)
+    return out
+
+def extract_vocab_list_all_tokens(assistant_text: str):
+    """
+    단계 A: '모든' 단어/표현 후보를 전수 수집(기능어, 양사, 접속사, 고유명사, 다어절 표현 포함).
+    반환: 표제어 리스트(list[str])
+    """
+    system_prompt = (
+        "역할: 중국어 어휘 추출기(전수 모드). 출력은 반드시 JSON 배열만.\n"
+        "요구사항:\n"
+        "- 입력 중국어 텍스트에서 등장한 모든 어휘 항목을 빠짐없이 나열.\n"
+        "- 단어, 기능어(了, 的, 吧 등), 양사, 접속사, 고유명사, 다어절 고정표현까지 포함.\n"
+        "- 중복은 제거하되 표제어(기본형) 기준으로 수록. 공백·설명 금지.\n"
+        "- JSON 배열에 문자열만(예: [\"为了\", \"请问\", \"学习伙伴\", ...])."
+    )
+    user_prompt = (
+        "다음 텍스트에서 등장한 모든 어휘 항목을 전수 추출하여 JSON 배열로 반환하라.\n"
+        f"[텍스트]\n{assistant_text}"
+    )
+    raw = _claude(
+        messages=[{"role":"user","content":user_prompt}],
+        system=system_prompt,
+        max_tokens=2000,
+        temperature=0
+    )
+    try:
+        data = json.loads(raw)
+        if not isinstance(data, list):
+            return []
+        # 문자열만 남기고, 공백 제거 후 순서 유지 중복 제거
+        words = [str(x).strip() for x in data if isinstance(x, (str, int, float))]
+        words = [w for w in words if w]
+        return _uniq_keep_order(words)
+    except Exception:
+        return []
+
+def enrich_vocab_details_in_batches(words, batch_size: int = 30):
+    """
+    단계 B: 표제어 목록을 배치로 받아 상세 필드 채움.
+    반환: [{word, pinyin, pos, hsk_level, meaning_ko, synonyms, collocations, example{cn,pinyin,ko}}]
+    """
+    all_items = []
+    for i in range(0, len(words), batch_size):
+        batch = words[i:i+batch_size]
+        system_prompt = (
+            "역할: 중국어 어휘 해설기. 출력은 반드시 JSON 배열만.\n"
+            "각 항목 필수 키:\n"
+            "- word, pinyin, pos, hsk_level, meaning_ko,\n"
+            "- synonyms(최대 5개), collocations(최대 5개),\n"
+            "- example{cn, pinyin, ko}\n"
+            "불확실하면 '확인 불가'. 한국어 뜻은 간결·정확."
+        )
+        user_prompt = (
+            "다음 표제어 목록에 대해 각 항목의 상세 정보를 채워 JSON 배열로 반환하라.\n"
+            f"[표제어]\n{json.dumps(batch, ensure_ascii=False)}"
+        )
+        raw = _claude(
+            messages=[{"role":"user","content":user_prompt}],
+            system=system_prompt,
+            max_tokens=2200,   # 배치로 충분히 크게
+            temperature=0
+        )
+        try:
+            data = json.loads(raw)
+            items = _normalize_vocab_list(data if isinstance(data, list) else [])
+            all_items = _merge_vocab_no_dup(all_items, items)
+        except Exception:
+            # 이 배치는 스킵, 다음 배치 진행
+            continue
+    return all_items
+
+def build_full_vocab_exhaustive(assistant_text: str):
+    """
+    통합 파이프라인: 전수 표제어 추출 → 배치 상세 보강 → (기존 분석 결과와) 병합용 반환
+    """
+    headwords = extract_vocab_list_all_tokens(assistant_text)
+    if not headwords:
+        return []
+    return enrich_vocab_details_in_batches(headwords)
+
 def extract_full_vocab_exhaustive(assistant_text: str):
     """
     튜터 발화 전문을 문장/조각으로 분할해 구간별로 단어를 모두 추출한 뒤 병합.
@@ -834,7 +920,7 @@ if st.session_state.is_loading and len(st.session_state.messages) > 0 and st.ses
             analysis_core = analyze_assistant_output(reply_text)
             analysis_core['feedback'] = generate_user_feedback(user_msg)
             # 튜터 문장에 등장한 모든 단어를 추가로 수집하여 병합
-            _full_vocab = extract_full_vocab_exhaustive(reply_text)
+            _full_vocab = build_full_vocab_exhaustive(reply_text)
             analysis_core['vocabulary'] = _merge_vocab_no_dup(analysis_core.get('vocabulary', []), _full_vocab)
 
             st.session_state.detailed_analysis = analysis_core
