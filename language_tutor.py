@@ -3,13 +3,509 @@ import anthropic
 import json
 from datetime import datetime
 
-# 페이지 설정 - 모바일 최적화
+# 페이지 설정
 st.set_page_config(
     page_title="语言学习",
     page_icon="💬",
-    layout="wide",
-    initial_sidebar_state="expanded"
+    layout="centered",
+    initial_sidebar_state="collapsed"
 )
+
+# WeChat 스타일 CSS
+st.markdown("""
+<style>
+    /* 전체 배경 */
+    .stApp {
+        background-color: #ededed;
+    }
+    
+    /* 헤더 및 푸터 숨기기 */
+    header, footer {visibility: hidden;}
+    .stDeployButton {display: none;}
+    
+    /* 메인 컨테이너 */
+    .main .block-container {
+        padding: 0;
+        max-width: 100%;
+    }
+    
+    /* WeChat 헤더 */
+    .wechat-header {
+        background: linear-gradient(135deg, #09b83e 0%, #0aa146 100%);
+        color: white;
+        padding: 15px 20px;
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        z-index: 1000;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+    
+    /* 채팅 영역 */
+    .chat-container {
+        padding: 60px 15px 80px 15px;
+        min-height: calc(100vh - 140px);
+    }
+    
+    /* 메시지 컨테이너 */
+    .msg-wrapper {
+        display: flex;
+        margin: 12px 0;
+        align-items: flex-start;
+    }
+    
+    .msg-wrapper.user {
+        justify-content: flex-end;
+    }
+    
+    .msg-wrapper.assistant {
+        justify-content: flex-start;
+    }
+    
+    /* 아바타 */
+    .avatar {
+        width: 40px;
+        height: 40px;
+        border-radius: 6px;
+        background-color: #d0d0d0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 20px;
+        flex-shrink: 0;
+    }
+    
+    .avatar.user {
+        background-color: #5B9BD5;
+        margin-left: 8px;
+    }
+    
+    /* 사용자 메시지 */
+    .user-message {
+        background-color: #95ec69;
+        color: #000;
+        padding: 10px 14px;
+        border-radius: 10px 10px 2px 10px;
+        max-width: 75%;
+        word-wrap: break-word;
+        font-size: 16px;
+        line-height: 1.5;
+        box-shadow: 0 1px 2px rgba(0,0,0,0.1);
+    }
+    
+    /* 튜터 메시지 */
+    .assistant-message {
+        background-color: #ffffff;
+        color: #000;
+        padding: 10px 14px;
+        border-radius: 10px 10px 10px 2px;
+        max-width: 75%;
+        word-wrap: break-word;
+        font-size: 16px;
+        line-height: 1.5;
+        box-shadow: 0 1px 2px rgba(0,0,0,0.1);
+        margin-right: 8px;
+    }
+    
+    /* 번역 텍스트 */
+    .translation {
+        margin-top: 8px;
+        padding-top: 8px;
+        border-top: 1px solid #e0e0e0;
+        font-size: 14px;
+        color: #666;
+    }
+    
+    /* 하단 탭 네비게이션 */
+    .bottom-nav {
+        position: fixed;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        background: white;
+        border-top: 1px solid #d0d0d0;
+        display: flex;
+        justify-content: space-around;
+        padding: 8px 0;
+        z-index: 1000;
+    }
+    
+    .nav-item {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        padding: 4px 16px;
+        cursor: pointer;
+        color: #8e8e93;
+        text-decoration: none;
+    }
+    
+    .nav-item.active {
+        color: #09b83e;
+    }
+    
+    .nav-item span {
+        font-size: 11px;
+        margin-top: 2px;
+    }
+    
+    /* 분석 카드 */
+    .analysis-card {
+        background: white;
+        padding: 12px;
+        border-radius: 8px;
+        margin: 8px 0;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+    }
+    
+    /* 통계 카드 */
+    .stat-card {
+        background: white;
+        padding: 20px;
+        border-radius: 12px;
+        margin: 12px 0;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+    
+    /* 입력 영역 */
+    .input-container {
+        position: fixed;
+        bottom: 60px;
+        left: 0;
+        right: 0;
+        background: #f7f7f7;
+        padding: 10px;
+        border-top: 1px solid #d0d0d0;
+        z-index: 999;
+    }
+    
+    /* 버튼 스타일 */
+    .stButton button {
+        background-color: #09b83e;
+        color: white;
+        border: none;
+        border-radius: 6px;
+        padding: 10px 20px;
+        font-weight: 500;
+    }
+    
+    .stButton button:hover {
+        background-color: #0aa146;
+    }
+    
+    /* 입력창 */
+    .stTextInput input {
+        border-radius: 6px;
+        border: 1px solid #d0d0d0;
+        padding: 10px 15px;
+    }
+    
+    /* 셀렉트 박스 */
+    .stSelectbox select {
+        border-radius: 6px;
+        border: 1px solid #d0d0d0;
+    }
+</style>
+""", unsafe_allow_html=True)
+
+# 세션 상태 초기화
+if 'messages' not in st.session_state:
+    st.session_state.messages = []
+if 'api_key' not in st.session_state:
+    try:
+        st.session_state.api_key = st.secrets["ANTHROPIC_API_KEY"]
+    except:
+        st.session_state.api_key = ""
+if 'language' not in st.session_state:
+    st.session_state.language = 'chinese'
+if 'proficiency' not in st.session_state:
+    st.session_state.proficiency = 'intermediate'
+if 'current_tab' not in st.session_state:
+    st.session_state.current_tab = 'chat'
+if 'show_translation' not in st.session_state:
+    st.session_state.show_translation = {}
+if 'current_analysis' not in st.session_state:
+    st.session_state.current_analysis = None
+
+# 언어 설정
+LANGUAGES = {
+    'chinese': {'name': '中文', 'flag': '🇨🇳'},
+    'spanish': {'name': 'Español', 'flag': '🇪🇸'},
+    'french': {'name': 'Français', 'flag': '🇫🇷'},
+    'japanese': {'name': '日本語', 'flag': '🇯🇵'}
+}
+
+PROFICIENCY = {
+    'beginner': '初级',
+    'intermediate': '中级',
+    'advanced': '高级'
+}
+
+def get_ai_response(messages, language, proficiency, api_key):
+    try:
+        client = anthropic.Anthropic(api_key=api_key)
+        response = client.messages.create(
+            model="claude-sonnet-4-20250514",
+            max_tokens=150,
+            system=f"You are a {LANGUAGES[language]['name']} tutor. Respond in {LANGUAGES[language]['name']}. Keep responses SHORT (2-3 sentences).",
+            messages=messages
+        )
+        return response.content[0].text
+    except Exception as e:
+        return f"错误: {str(e)}"
+
+def translate_to_korean(text, api_key):
+    try:
+        client = anthropic.Anthropic(api_key=api_key)
+        response = client.messages.create(
+            model="claude-sonnet-4-20250514",
+            max_tokens=300,
+            messages=[{"role": "user", "content": f"Translate to Korean (translation only): {text}"}]
+        )
+        return response.content[0].text
+    except Exception as e:
+        return f"翻译错误: {str(e)}"
+
+def analyze_chinese(text, api_key):
+    try:
+        client = anthropic.Anthropic(api_key=api_key)
+        prompt = f"""Analyze this Chinese text in JSON format:
+{{
+  "pinyin": "full pinyin",
+  "words": [{{"chinese": "word", "pinyin": "pinyin", "meaning": "Korean meaning"}}],
+  "grammar": "grammar explanation in Korean"
+}}
+
+Text: {text}"""
+        
+        response = client.messages.create(
+            model="claude-sonnet-4-20250514",
+            max_tokens=1500,
+            messages=[{"role": "user", "content": prompt}]
+        )
+        
+        analysis_text = response.content[0].text.replace('```json', '').replace('```', '').strip()
+        return json.loads(analysis_text)
+    except Exception as e:
+        return {"pinyin": "分析错误", "words": [], "grammar": str(e)}
+
+# WeChat 헤더
+st.markdown(f"""
+<div class='wechat-header'>
+    <div style='display: flex; justify-content: space-between; align-items: center;'>
+        <div style='font-size: 18px; font-weight: 500;'>
+            {LANGUAGES[st.session_state.language]['flag']} {LANGUAGES[st.session_state.language]['name']}学习
+        </div>
+        <div style='font-size: 14px; opacity: 0.9;'>
+            {PROFICIENCY[st.session_state.proficiency]}
+        </div>
+    </div>
+</div>
+""", unsafe_allow_html=True)
+
+# 하단 네비게이션
+col1, col2, col3, col4 = st.columns(4)
+with col1:
+    if st.button("💬\n对话", key="nav_chat", use_container_width=True):
+        st.session_state.current_tab = 'chat'
+        st.rerun()
+with col2:
+    if st.button("📖\n分析", key="nav_analysis", use_container_width=True):
+        st.session_state.current_tab = 'analysis'
+        st.rerun()
+with col3:
+    if st.button("📊\n统计", key="nav_stats", use_container_width=True):
+        st.session_state.current_tab = 'stats'
+        st.rerun()
+with col4:
+    if st.button("⚙️\n设置", key="nav_settings", use_container_width=True):
+        st.session_state.current_tab = 'settings'
+        st.rerun()
+
+st.markdown("<br>", unsafe_allow_html=True)
+
+# 탭별 콘텐츠
+if st.session_state.current_tab == 'chat':
+    st.markdown("<div class='chat-container'>", unsafe_allow_html=True)
+    
+    if len(st.session_state.messages) == 0:
+        st.markdown(f"""
+        <div style='text-align: center; padding: 60px 20px;'>
+            <div style='font-size: 64px; margin-bottom: 16px;'>{LANGUAGES[st.session_state.language]['flag']}</div>
+            <p style='color: #8e8e93; font-size: 16px;'>开始对话</p>
+        </div>
+        """, unsafe_allow_html=True)
+    else:
+        for idx, msg in enumerate(st.session_state.messages):
+            if msg['role'] == 'user':
+                st.markdown(f"""
+                <div class='msg-wrapper user'>
+                    <div class='user-message'>{msg['content']}</div>
+                    <div class='avatar user'>👤</div>
+                </div>
+                """, unsafe_allow_html=True)
+            else:
+                msg_key = f"msg_{idx}"
+                msg_content = msg['content']
+                
+                if msg_key in st.session_state.show_translation and st.session_state.show_translation[msg_key]:
+                    if 'translation' in msg:
+                        msg_content = f"{msg['content']}<div class='translation'>{msg['translation']}</div>"
+                
+                st.markdown(f"""
+                <div class='msg-wrapper assistant'>
+                    <div class='avatar'>🤖</div>
+                    <div class='assistant-message'>{msg_content}</div>
+                </div>
+                """, unsafe_allow_html=True)
+                
+                if st.button(f"{'隐藏翻译' if st.session_state.show_translation.get(msg_key, False) else '显示翻译'}", key=f"trans_{idx}"):
+                    if 'translation' not in msg:
+                        msg['translation'] = translate_to_korean(msg['content'], st.session_state.api_key)
+                    st.session_state.show_translation[msg_key] = not st.session_state.show_translation.get(msg_key, False)
+                    st.rerun()
+    
+    st.markdown("</div>", unsafe_allow_html=True)
+    st.markdown("<div style='height: 80px;'></div>", unsafe_allow_html=True)
+    
+    # 입력 영역
+    st.markdown("<div class='input-container'>", unsafe_allow_html=True)
+    col_input, col_send = st.columns([5, 1])
+    with col_input:
+        user_input = st.text_input("", placeholder="输入消息...", key="chat_input", label_visibility="collapsed")
+    with col_send:
+        send_btn = st.button("📤", key="send_btn", use_container_width=True)
+    st.markdown("</div>", unsafe_allow_html=True)
+    
+    if user_input and send_btn and st.session_state.api_key:
+        st.session_state.messages.append({"role": "user", "content": user_input})
+        
+        messages_for_api = [{"role": m["role"], "content": m["content"]} for m in st.session_state.messages]
+        ai_response = get_ai_response(messages_for_api, st.session_state.language, st.session_state.proficiency, st.session_state.api_key)
+        
+        st.session_state.messages.append({"role": "assistant", "content": ai_response})
+        
+        if st.session_state.language == 'chinese':
+            st.session_state.current_analysis = analyze_chinese(ai_response, st.session_state.api_key)
+        
+        st.rerun()
+
+elif st.session_state.current_tab == 'analysis':
+    st.markdown("<div style='padding: 70px 15px 80px;'>", unsafe_allow_html=True)
+    st.markdown("## 📖 词汇分析")
+    
+    if st.session_state.current_analysis:
+        analysis = st.session_state.current_analysis
+        
+        if analysis.get('pinyin'):
+            st.markdown(f"""
+            <div class='analysis-card' style='background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%);'>
+                <div style='font-size: 12px; font-weight: 600; color: #666; margin-bottom: 6px;'>拼音</div>
+                <div style='color: #7c3aed; font-size: 16px;'>{analysis['pinyin']}</div>
+            </div>
+            """, unsafe_allow_html=True)
+        
+        if analysis.get('words'):
+            st.markdown("<div style='font-size: 12px; font-weight: 600; color: #666; margin: 16px 0 8px;'>词汇</div>", unsafe_allow_html=True)
+            for word in analysis['words']:
+                st.markdown(f"""
+                <div class='analysis-card'>
+                    <div style='font-size: 20px; font-weight: bold; color: #09b83e;'>{word['chinese']}</div>
+                    <div style='font-size: 14px; color: #666; margin: 4px 0;'>({word['pinyin']})</div>
+                    <div style='font-size: 15px; color: #333; margin-top: 6px;'>→ {word['meaning']}</div>
+                </div>
+                """, unsafe_allow_html=True)
+        
+        if analysis.get('grammar'):
+            st.markdown(f"""
+            <div class='analysis-card' style='background: #fff3cd; border-left: 4px solid #09b83e;'>
+                <div style='font-size: 12px; font-weight: 600; color: #666; margin-bottom: 6px;'>语法</div>
+                <div style='color: #333; font-size: 15px;'>{analysis['grammar']}</div>
+            </div>
+            """, unsafe_allow_html=True)
+    else:
+        st.info("开始对话后查看分析")
+    
+    st.markdown("</div>", unsafe_allow_html=True)
+
+elif st.session_state.current_tab == 'stats':
+    st.markdown("<div style='padding: 70px 15px 80px;'>", unsafe_allow_html=True)
+    st.markdown("## 📊 学习统计")
+    
+    st.markdown(f"""
+    <div class='stat-card'>
+        <div style='font-size: 14px; color: #8e8e93; margin-bottom: 8px;'>对话次数</div>
+        <div style='font-size: 36px; font-weight: bold; color: #09b83e;'>{len(st.session_state.messages)}</div>
+    </div>
+    """, unsafe_allow_html=True)
+    
+    st.markdown(f"""
+    <div class='stat-card'>
+        <div style='font-size: 14px; color: #8e8e93; margin-bottom: 8px;'>今日学习</div>
+        <div style='font-size: 36px; font-weight: bold; color: #007aff;'>活跃中</div>
+    </div>
+    """, unsafe_allow_html=True)
+    
+    st.markdown(f"""
+    <div class='stat-card'>
+        <div style='font-size: 14px; color: #8e8e93; margin-bottom: 8px;'>当前语言</div>
+        <div style='font-size: 28px; font-weight: bold;'>{LANGUAGES[st.session_state.language]['flag']} {LANGUAGES[st.session_state.language]['name']}</div>
+    </div>
+    """, unsafe_allow_html=True)
+    
+    st.markdown("</div>", unsafe_allow_html=True)
+
+elif st.session_state.current_tab == 'settings':
+    st.markdown("<div style='padding: 70px 15px 80px;'>", unsafe_allow_html=True)
+    st.markdown("## ⚙️ 设置")
+    
+    if not st.session_state.api_key:
+        api_key = st.text_input("API密钥", type="password", placeholder="输入 Anthropic API Key")
+        if api_key:
+            st.session_state.api_key = api_key
+            st.success("✅ API密钥已设置")
+            st.rerun()
+    else:
+        st.success("✅ API密钥已设置")
+        if st.button("修改API密钥"):
+            st.session_state.api_key = ""
+            st.rerun()
+    
+    st.markdown("---")
+    
+    language = st.selectbox(
+        "学习语言",
+        options=list(LANGUAGES.keys()),
+        format_func=lambda x: f"{LANGUAGES[x]['flag']} {LANGUAGES[x]['name']}",
+        index=list(LANGUAGES.keys()).index(st.session_state.language)
+    )
+    if language != st.session_state.language:
+        st.session_state.language = language
+        st.session_state.messages = []
+        st.session_state.current_analysis = None
+        st.rerun()
+    
+    proficiency = st.selectbox(
+        "水平",
+        options=list(PROFICIENCY.keys()),
+        format_func=lambda x: PROFICIENCY[x],
+        index=list(PROFICIENCY.keys()).index(st.session_state.proficiency)
+    )
+    if proficiency != st.session_state.proficiency:
+        st.session_state.proficiency = proficiency
+        st.rerun()
+    
+    st.markdown("---")
+    
+    if st.button("🗑️ 清空对话", use_container_width=True, type="secondary"):
+        st.session_state.messages = []
+        st.session_state.current_analysis = None
+        st.session_state.show_translation = {}
+        st.success("对话已清空")
+        st.rerun()
+    
+    st.markdown("</div>", unsafe_allow_html=True)
 
 # WeChat 스타일 CSS
 st.markdown("""
