@@ -4,6 +4,7 @@ import time
 from datetime import datetime
 import os
 import textwrap
+import re  
 
 # ==================== Anthropic 설정 ====================
 try:
@@ -516,12 +517,7 @@ def extract_full_vocab_from_text(assistant_text: str):
         "반환 형식은 JSON 배열만 허용.\n"
         f"[튜터 발화]\n{assistant_text}"
     )
-    raw = _claude(
-        messages=[{"role":"user","content":user_prompt}],
-        system=system_prompt,
-        max_tokens=1400,
-        temperature=0
-    )
+    raw = _claude(messages=[{"role":"user","content":user_prompt}], system=system_prompt, max_tokens=1400, temperature=0)
     try:
         data = json.loads(raw)
         return _normalize_vocab_list(data if isinstance(data, list) else [])
@@ -530,7 +526,7 @@ def extract_full_vocab_from_text(assistant_text: str):
 
 def _merge_vocab_no_dup(primary_list, extra_list):
     """word 기준 중복 없이 병합"""
-    seen = {(v.get("word") or "").strip() for v in primary_list}
+    seen = { (v.get("word") or "").strip() for v in primary_list }
     out = list(primary_list)
     for v in extra_list:
         w = (v.get("word") or "").strip()
@@ -538,6 +534,61 @@ def _merge_vocab_no_dup(primary_list, extra_list):
             out.append(v)
             seen.add(w)
     return out
+
+def extract_full_vocab_exhaustive(assistant_text: str):
+    """
+    튜터 발화 전문을 문장/조각으로 분할해 구간별로 단어를 모두 추출한 뒤 병합.
+    누락을 줄이기 위한 '철저 추출' 모드.
+    """
+    # 1) 문장 분할
+    parts = [p.strip() for p in re.split(r"[。！？!?\n]+", assistant_text) if p.strip()]
+
+    merged = []
+    buf = ""
+    CHUNK_LIMIT = 120  # 너무 길면 모델이 누락시키므로 적당히 쪼갬
+
+    def _flush(chunk):
+        nonlocal merged
+        if not chunk.strip():
+            return
+        system_prompt = (
+            "역할: 중국어 어휘 추출기(철저 모드). 출력은 반드시 JSON 배열만.\n"
+            "요구사항:\n"
+            "- 이 입력 조각에서 등장한 '모든' 단어(표제어 기준)를 빠짐없이 수집.\n"
+            "- 기능어·양사·고유명사·다어절 표현까지 포함. 중복 제거.\n"
+            "- 각 항목 키: word, pinyin, pos, hsk_level, meaning_ko, synonyms, collocations, example{cn,pinyin,ko}\n"
+            "- 불확실하면 '확인 불가' 표기. 한국어 뜻은 간결·정확.\n"
+            "- JSON만 출력(설명·문장 금지)."
+        )
+        user_prompt = (
+            "다음 중국어 텍스트에서 등장하는 모든 단어를 빠짐없이 추출하라.\n"
+            "반환: JSON 배열만.\n"
+            f"[텍스트]\n{chunk}"
+        )
+        raw = _claude(
+            messages=[{"role": "user", "content": user_prompt}],
+            system=system_prompt,
+            max_tokens=2000,
+            temperature=0
+        )
+        try:
+            data = json.loads(raw)
+            vocab_list = _normalize_vocab_list(data if isinstance(data, list) else [])
+            nonlocal merged
+            merged = _merge_vocab_no_dup(merged, vocab_list)
+        except Exception:
+            pass  # 조각 하나 실패해도 전체는 계속
+
+    # 2) 길이 기반 버퍼링하여 호출
+    for p in parts:
+        if len(buf) + len(p) + 1 <= CHUNK_LIMIT:
+            buf = (buf + " " + p).strip()
+        else:
+            _flush(buf)
+            buf = p
+    _flush(buf)  # 마지막 조각
+
+    return merged
 
 # -------- 상세분석(튜터 발화 기준) & 사용자 피드백(학습자 발화 기준) ----------
 def analyze_assistant_output(assistant_text: str):
@@ -783,7 +834,7 @@ if st.session_state.is_loading and len(st.session_state.messages) > 0 and st.ses
             analysis_core = analyze_assistant_output(reply_text)
             analysis_core['feedback'] = generate_user_feedback(user_msg)
             # 튜터 문장에 등장한 모든 단어를 추가로 수집하여 병합
-            _full_vocab = extract_full_vocab_from_text(reply_text)
+            _full_vocab = extract_full_vocab_exhaustive(reply_text)
             analysis_core['vocabulary'] = _merge_vocab_no_dup(analysis_core.get('vocabulary', []), _full_vocab)
 
             st.session_state.detailed_analysis = analysis_core
