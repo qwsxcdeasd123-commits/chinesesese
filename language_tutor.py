@@ -335,14 +335,17 @@ def save_conversation():
     
     return content, filename
 
-# 헤더
+# 헤더 - WeChat 스타일
 st.markdown(f"""
-<div style='background-color: #2563eb; color: white; padding: 20px; border-radius: 12px; margin-bottom: 20px;'>
-    <h1 style='margin: 0; font-size: 24px;'>📚 언어 학습 튜터</h1>
-    <p style='margin: 5px 0 0 0; font-size: 14px;'>
-        {LANGUAGES[st.session_state.language]['flag']} {LANGUAGES[st.session_state.language]['name']} · 
-        {PROFICIENCY[st.session_state.proficiency]}
-    </p>
+<div class='wechat-header'>
+    <div style='display: flex; justify-content: space-between; align-items: center;'>
+        <div style='font-size: 18px; font-weight: 500;'>
+            {LANGUAGES[st.session_state.language]['flag']} {LANGUAGES[st.session_state.language]['name']}学习
+        </div>
+        <div style='font-size: 14px; opacity: 0.9;'>
+            {PROFICIENCY[st.session_state.proficiency]}
+        </div>
+    </div>
 </div>
 """, unsafe_allow_html=True)
 
@@ -499,19 +502,20 @@ else:
                     st.markdown(f"• {note}")
     
     # 입력 영역
-    st.divider()
-    col1, col2 = st.columns([5, 1])
+    st.markdown("<div class='input-area'>", unsafe_allow_html=True)
+    col1, col2 = st.columns([6, 1])
     
     with col1:
         user_input = st.text_input(
             "메시지 입력",
             key="user_input",
-            placeholder=f"{LANGUAGES[st.session_state.language]['name']}로 입력하세요...",
+            placeholder="输入消息...",
             label_visibility="collapsed"
         )
     
     with col2:
-        send_button = st.button("📤", use_container_width=True)
+        send_button = st.button("💬", use_container_width=True, type="primary")
+    st.markdown("</div>", unsafe_allow_html=True)
     
     # 메시지 전송
     if (send_button or user_input) and user_input:
