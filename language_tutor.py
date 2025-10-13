@@ -20,15 +20,16 @@ st.markdown("""
         background-color: #ededed;
     }
     
-    /* Streamlit 기본 헤더 숨김 */
-    header[data-testid="stHeader"] {
-        display: none;
+    /* 상단 여백 추가 */
+    .main > div:first-child {
+        padding-top: 1cm !important;
     }
     
-    /* 상단 여백 제거 */
+    /* 블록 컨테이너 여백 최소화 */
     .block-container {
-        padding-top: 0rem !important;
-        padding-bottom: 0;
+        padding-top: 0.5rem !important;
+        padding-bottom: 0 !important;
+        max-width: 100% !important;
     }
     
     /* 헤더 - WeChat 그린 */
@@ -37,10 +38,8 @@ st.markdown("""
         color: white;
         padding: 1rem;
         border-radius: 0;
-        margin: -1rem -1rem 0rem -1rem;
+        margin: -0.5rem -1rem 0.75cm -1rem;
         box-shadow: 0 1px 3px rgba(0,0,0,0.12);
-        position: relative;
-        z-index: 999;
     }
     
     .header-title {
@@ -227,11 +226,23 @@ st.markdown("""
         background: #f7f7f7;
         border-top: 1px solid #d9d9d9;
         padding: 0.625rem 1rem;
-        margin: 0.5rem -1rem -1rem -1rem;
+        margin: 0.5rem -1rem 0 -1rem;
     }
     
     /* 입력창과 버튼을 한 줄로 배치 */
+    .input-row {
+        display: flex;
+        gap: 0.5rem;
+        align-items: center;
+    }
+    
+    /* 컬럼 간격 제거 */
+    [data-testid="column"] {
+        padding: 0 !important;
+    }
+    
     .stTextInput {
+        flex: 1;
         margin-bottom: 0 !important;
     }
     
@@ -306,7 +317,6 @@ st.markdown("""
     /* 사이드바 - WeChat 스타일 */
     [data-testid="stSidebar"] {
         background: #fafafa;
-        z-index: 998;
     }
     
     [data-testid="stSidebar"] .stSelectbox > div > div {
@@ -371,7 +381,7 @@ st.markdown("""
     /* 빈 화면 안내 */
     .empty-state {
         text-align: center;
-        padding: 2rem 1rem;
+        padding: 3rem 1rem;
     }
     
     .empty-icon {
@@ -458,11 +468,6 @@ st.markdown("""
     .stTextInput > label {
         display: none;
     }
-    
-    /* 컬럼 간격 조정 */
-    [data-testid="column"] {
-        padding: 0 !important;
-    }
 </style>
 """, unsafe_allow_html=True)
 
@@ -485,6 +490,8 @@ if 'translating_message_id' not in st.session_state:
     st.session_state.translating_message_id = None
 if 'goals' not in st.session_state:
     st.session_state.goals = []
+if 'input_key' not in st.session_state:
+    st.session_state.input_key = 0
 
 # 언어 정보
 languages = {
@@ -680,23 +687,19 @@ else:
 st.markdown('</div>', unsafe_allow_html=True)
 
 # 입력 영역
-st.markdown('<div class="input-container">', unsafe_allow_html=True)
+col_input, col_button = st.columns([10, 1])
 
-col1, col2 = st.columns([10, 1])
-
-with col1:
+with col_input:
     user_input = st.text_input(
         "message",
         placeholder=f"{current_lang['name']}로 입력...",
-        key="user_input",
+        key=f"user_input_{st.session_state.input_key}",
         label_visibility="collapsed",
         disabled=st.session_state.is_loading
     )
 
-with col2:
-    send_button = st.button("↑", use_container_width=True, type="primary", disabled=st.session_state.is_loading or not user_input.strip(), key="send_btn")
-
-st.markdown('</div>', unsafe_allow_html=True)
+with col_button:
+    send_button = st.button("↑", type="primary", disabled=st.session_state.is_loading or not user_input.strip(), key="send_btn")
 
 # 중국어 상세 분석 (입력창 아래로 이동)
 if st.session_state.selected_language == 'chinese' and st.session_state.detailed_analysis:
@@ -752,8 +755,6 @@ if st.session_state.selected_language == 'chinese' and st.session_state.detailed
             st.markdown(vocab_html, unsafe_allow_html=True)
             st.markdown('</div>', unsafe_allow_html=True)
         
-        # 위 코드는 그대로 유지하고, 아래 부분만 교체하세요
-
         if analysis.get('notes'):
             st.markdown(f"""
             <div class="analysis-section">
@@ -788,7 +789,7 @@ if st.session_state.selected_language == 'chinese' and st.session_state.detailed
             """, unsafe_allow_html=True)
 
 # 메시지 전송 처리
-if send_button and user_input and user_input.strip():
+if send_button and user_input.strip():
     # 사용자 메시지 추가
     st.session_state.messages.append({
         'role': 'user',
@@ -797,48 +798,52 @@ if send_button and user_input and user_input.strip():
     
     # 로딩 시작
     st.session_state.is_loading = True
+    
+    # 입력창 초기화를 위한 키 변경
+    st.session_state.input_key += 1
+    
     st.rerun()
 
 # 로딩 후 응답 생성
-if st.session_state.is_loading:
-    if len(st.session_state.messages) > 0 and st.session_state.messages[-1]['role'] == 'user':
-        time.sleep(1)
-        
-        # 사용자 목표를 포함한 프롬프트 생성
-        goals_text = ", ".join(st.session_state.goals) if st.session_state.goals else "기초 회화"
-        user_msg = st.session_state.messages[-1]['content']
-        
-        assistant_message = {
-            'role': 'assistant',
-            'content': f'你好！很高兴认识你。今天想聊什么？\n\n我注意到你的学习目标是：{goals_text}。我会根据这些目标来调整我的回答。'
-        }
-        
-        st.session_state.messages.append(assistant_message)
-        
-        if st.session_state.selected_language == 'chinese':
-            # 사용자 메시지 피드백 생성
-            st.session_state.detailed_analysis = {
-                'pinyin': 'nǐ hǎo! hěn gāoxìng rènshi nǐ. jīntiān xiǎng liáo shénme?',
-                'words': [
-                    {'chinese': '你好', 'pinyin': 'nǐ hǎo', 'meaning': '안녕하세요'},
-                    {'chinese': '很', 'pinyin': 'hěn', 'meaning': '매우'},
-                    {'chinese': '高兴', 'pinyin': 'gāoxìng', 'meaning': '기쁘다'},
-                    {'chinese': '认识', 'pinyin': 'rènshi', 'meaning': '알다, 만나다'},
-                    {'chinese': '今天', 'pinyin': 'jīntiān', 'meaning': '오늘'},
-                    {'chinese': '想', 'pinyin': 'xiǎng', 'meaning': '~하고 싶다'},
-                    {'chinese': '聊', 'pinyin': 'liáo', 'meaning': '이야기하다'},
-                    {'chinese': '什么', 'pinyin': 'shénme', 'meaning': '무엇'}
-                ],
-                'grammar': "这是一个简单的问候句。'很高兴认识你' 是固定搭配，表示见面时的礼貌用语。",
-                'vocabulary': ["'认识' 是HSK 3级词汇，表示认识某人", "'聊' 是口语中常用的动词"],
-                'notes': "这是标准的中文问候语，适合初次见面使用。",
-                'feedback': {
-                    'expression': f"您说的'{user_msg}'很自然！",
-                    'grammar': "语法结构正确，使用了合适的时态和语序。",
-                    'context': "在这种情况下使用这个表达非常合适。",
-                    'word_choice': "词汇选择恰当，符合中文母语者的表达习惯。"
-                }
+if st.session_state.is_loading and len(st.session_state.messages) > 0 and st.session_state.messages[-1]['role'] == 'user':
+    time.sleep(1)
+    
+    # 사용자 목표를 포함한 프롬프트 생성
+    goals_text = ", ".join(st.session_state.goals) if st.session_state.goals else "기초 회화"
+    user_msg = st.session_state.messages[-1]['content']
+    
+    assistant_message = {
+        'role': 'assistant',
+        'content': f'你好！很高兴认识你。今天想聊什么？\n\n我注意到你的学习目标是：{goals_text}。我会根据这些目标来调整我的回答。'
+    }
+    
+    st.session_state.messages.append(assistant_message)
+    
+    if st.session_state.selected_language == 'chinese':
+        # 사용자 메시지 피드백 생성
+        st.session_state.detailed_analysis = {
+            'pinyin': 'nǐ hǎo! hěn gāoxìng rènshi nǐ. jīntiān xiǎng liáo shénme?',
+            'words': [
+                {'chinese': '你好', 'pinyin': 'nǐ hǎo', 'meaning': '안녕하세요'},
+                {'chinese': '很', 'pinyin': 'hěn', 'meaning': '매우'},
+                {'chinese': '高兴', 'pinyin': 'gāoxìng', 'meaning': '기쁘다'},
+                {'chinese': '认识', 'pinyin': 'rènshi', 'meaning': '알다, 만나다'},
+                {'chinese': '今天', 'pinyin': 'jīntiān', 'meaning': '오늘'},
+                {'chinese': '想', 'pinyin': 'xiǎng', 'meaning': '~하고 싶다'},
+                {'chinese': '聊', 'pinyin': 'liáo', 'meaning': '이야기하다'},
+                {'chinese': '什么', 'pinyin': 'shénme', 'meaning': '무엇'}
+            ],
+            'grammar': "这是一个简单的问候句。'很高兴认识你' 是固定搭配，表示见面时的礼貌用语。",
+            'vocabulary': ["'认识' 是HSK 3级词汇，表示认识某人", "'聊' 是口语中常用的动词"],
+            'notes': "这是标准的中文问候语，适合初次见面使用。",
+            'feedback': {
+                'expression': f"您说的'{user_msg}'很自然！",
+                'grammar': "语法结构正确，使用了合适的时态和语序。",
+                'context': "在这种情况下使用这个表达非常合适。",
+                'word_choice': "词汇选择恰当，符合中文母语者的表达习惯。"
             }
-        
-        st.session_state.is_loading = False
-        st.rerun()
+        }
+    
+    # 로딩 종료
+    st.session_state.is_loading = False
+    st.rerun()
