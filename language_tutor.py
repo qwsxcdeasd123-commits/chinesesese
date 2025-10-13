@@ -324,20 +324,6 @@ st.markdown("""
         margin: 0.5rem 0;
         font-size: 0.875rem;
         color: #353535;
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-    }
-    
-    .goal-text {
-        flex: 1;
-    }
-    
-    .goal-delete {
-        color: #ef4444;
-        cursor: pointer;
-        font-size: 1rem;
-        padding: 0 0.5rem;
     }
     
     /* 로딩 애니메이션 - WeChat 스타일 */
@@ -471,11 +457,6 @@ st.markdown("""
     .stTextInput > label {
         display: none;
     }
-    
-    /* 목표 추가 입력창 */
-    .goal-input {
-        margin-top: 0.5rem;
-    }
 </style>
 """, unsafe_allow_html=True)
 
@@ -498,8 +479,6 @@ if 'translating_message_id' not in st.session_state:
     st.session_state.translating_message_id = None
 if 'goals' not in st.session_state:
     st.session_state.goals = []
-if 'new_goal' not in st.session_state:
-    st.session_state.new_goal = ""
 
 # 언어 정보
 languages = {
@@ -597,7 +576,7 @@ with st.sidebar:
     for idx, goal in enumerate(st.session_state.goals):
         col1, col2 = st.columns([5, 1])
         with col1:
-            st.markdown(f'<div class="goal-item"><div class="goal-text">• {goal}</div></div>', unsafe_allow_html=True)
+            st.markdown(f'<div class="goal-item">• {goal}</div>', unsafe_allow_html=True)
         with col2:
             if st.button("×", key=f"del_goal_{idx}"):
                 st.session_state.goals.pop(idx)
@@ -672,8 +651,7 @@ else:
                     st.rerun()
                 elif not is_translating:
                     st.session_state.translating_message_id = idx
-                    time.sleep(1)
-                    st.session_state.messages[idx]['translation'] = f"[번역] {msg['content']}"
+                    st.session_state.messages[idx]['translation'] = f"안녕하세요! 만나서 반갑습니다. 오늘 무엇에 대해 이야기하고 싶으세요?"
                     st.session_state.translating_message_id = None
                     st.session_state.show_translation[idx] = True
                     st.rerun()
@@ -748,7 +726,8 @@ if st.session_state.selected_language == 'chinese' and st.session_state.detailed
                 <div class="analysis-label">语法 (문법)</div>
                 <div class="grammar-box">
                     <div style="color: #333; margin-bottom: 0.25rem;">{analysis['grammar']}</div>
-                    <div style="color: #666; font-size: 0.75rem; margin-top: 0.375rem;">[한글] 간단한 인사 문장입니다. '很高兴认识你'는 고정 표현으로, 처음 만날 때 사용하는 예의바른 표현입니다.</div>
+                    <div style="color: #666; font-size: 0.75rem; margin-top: 0.375rem; padding-top: 0.375rem; border-top: 1px solid #fde68a;">
+                    [한글] 간단한 인사 문장입니다. '很高兴认识你'는 고정 표현으로, 처음 만날 때 사용하는 예의바른 표현입니다.</div>
                 </div>
             </div>
             """, unsafe_allow_html=True)
@@ -757,9 +736,12 @@ if st.session_state.selected_language == 'chinese' and st.session_state.detailed
             st.markdown('<div class="analysis-section">', unsafe_allow_html=True)
             st.markdown('<div class="analysis-label">词汇笔记 (어휘 노트)</div>', unsafe_allow_html=True)
             vocab_html = "<div class='vocabulary-box'>"
-            for v in analysis['vocabulary']:
+            for i, v in enumerate(analysis['vocabulary']):
                 vocab_html += f"<div style='margin-bottom: 0.25rem;'>• {v}</div>"
-                vocab_html += f"<div style='color: #666; font-size: 0.75rem; margin-left: 1rem; margin-bottom: 0.5rem;'>[한글] '认识'는 HSK 3급 단어로, 누군가를 안다는 의미</div>"
+                if i == 0:
+                    vocab_html += f"<div style='color: #666; font-size: 0.75rem; margin-left: 1rem; margin-bottom: 0.5rem; padding-bottom: 0.5rem; border-bottom: 1px solid #bbf7d0;'>[한글] '认识'는 HSK 3급 단어로, 누군가를 안다는 의미입니다</div>"
+                else:
+                    vocab_html += f"<div style='color: #666; font-size: 0.75rem; margin-left: 1rem; margin-bottom: 0.5rem; padding-bottom: 0.5rem; border-bottom: 1px solid #bbf7d0;'>[한글] '聊'는 구어에서 자주 사용되는 동사입니다</div>"
             vocab_html += "</div>"
             st.markdown(vocab_html, unsafe_allow_html=True)
             st.markdown('</div>', unsafe_allow_html=True)
@@ -770,10 +752,28 @@ if st.session_state.selected_language == 'chinese' and st.session_state.detailed
                 <div class="analysis-label">附加说明 (추가 설명)</div>
                 <div class="notes-box">
                     <div style="color: #333; margin-bottom: 0.25rem;">{analysis['notes']}</div>
-                    <div style="color: #666; font-size: 0.75rem; margin-top: 0.375rem;">[한글] 표준 중국어 인사말로, 처음 만날 때 사용하기 적합합니다.</div>
-                </div>
+                    <div style="color: #666; font-size: 0.75rem; margin-top: 0.375rem; padding-top: 0.375rem; border-top: 1px solid #fde68a;">
+                    [한글] 표준 중국어 인사말로, 처음 만날때 사용하기 적합합니다.</div>
+                    </div>
+                    </div>
+                    """, unsafe_allow_html=True)
+            # 사용자 피드백 추가
+    if analysis.get('feedback'):
+        st.markdown(f"""
+        <div class="analysis-section">
+            <div class="analysis-label">您的反馈 (사용자 피드백)</div>
+            <div class="feedback-box">
+                <div style="margin-bottom: 0.5rem;"><strong>表现 (표현):</strong> {analysis['feedback'].get('expression', 'N/A')}</div>
+                <div style="color: #666; font-size: 0.75rem; margin-left: 1rem; margin-bottom: 0.75rem;">[한글] 자연스러운 표현을 사용하셨습니다</div>
+                
+                <div style="margin-bottom: 0.5rem;"><strong>语法 (문법):</strong> {analysis['feedback'].get('grammar', 'N/A')}</div>
+                <div style="color: #666; font-size: 0.75rem; margin-left: 1rem; margin-bottom: 0.75rem;">[한글] 문법이 정확합니다</div>
+                
+                <div style="margin-bottom: 0.5rem;"><strong>语境 (맥락):</strong> {analysis['feedback'].get('context', 'N/A')}</div>
+                <div style="color: #666; font-size: 0.75rem; margin-left: 1rem; margin-bottom: 0.75rem;">[한글] 상황에 적절한 표현입니다</div>
+                
+                <div style="margin-bottom: 0.5rem;"><strong>单词选择 (단어 선택):</strong> {analysis['feedback'].get('word_choice', 'N/A')}</div>
+                <div style="color: #666; font-size: 0.75rem; margin-left: 1rem;">[한글] 적절한 어휘를 선택하셨습니다</div>
             </div>
-            """, unsafe_allow_html=True)
-        
-        # 사용자 피드백 추가
-        if analysis.get
+        </div>
+        """, unsafe_allow_html=True)
