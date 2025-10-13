@@ -889,15 +889,18 @@ if vocab_full:
     dict_html += "</div></div>"  # vocabulary-box / analysis-section 닫기
     st.markdown(dict_html, unsafe_allow_html=True)
 
-        # 추가 설명
+        # 추가 설명 (notes)
         notes = analysis.get("notes")
         if notes:
-            st.markdown(f"""
-            <div class="analysis-section">
-                <div class="analysis-label">附加说明 (추가 설명 · HSK 대비)</div>
-                <div class="notes-box">{notes}</div>
-            </div>
-            """, unsafe_allow_html=True)
+            st.markdown(
+                f"""
+                <div class="analysis-section">
+                    <div class="analysis-label">附加说明 (추가 설명 · HSK 대비)</div>
+                    <div class="notes-box">{notes}</div>
+                </div>
+                """,
+                unsafe_allow_html=True
+            )
 
         # 사용자 피드백(단일 HTML로 묶기)
         if analysis.get('feedback'):
