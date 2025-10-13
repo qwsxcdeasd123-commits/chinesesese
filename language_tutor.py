@@ -47,7 +47,7 @@ st.markdown("""
         justify-content: flex-end;  /* 내부 텍스트를 아래쪽으로 */
     
         border-radius: 0;
-        margin: -1rem -1rem 0.25rem -1rem;
+        margin: -1rem -1rem 0.25rem -1rem; !important;
         box-shadow: 0 1px 3px rgba(0,0,0,0.12);
     }
 
@@ -65,7 +65,7 @@ st.markdown("""
         min-height: 450px;
         max-height: 550px;
         overflow-y: auto;
-        padding: 1rem;
+        padding: 0.25rem 1rem 1rem 1rem !important; 
         margin: 0 -1rem;
     }
     
@@ -410,7 +410,7 @@ st.markdown("""
     /* 빈 화면 안내 */
     .empty-state {
         text-align: center;
-        padding: 0.5rem 1rem;
+        padding: 1rem 1rem; !important;
     }
     
     .empty-icon {
