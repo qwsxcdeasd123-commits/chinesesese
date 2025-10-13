@@ -36,11 +36,20 @@ st.markdown("""
     .header {
         background: linear-gradient(135deg, #09b83e 0%, #07a33a 100%);
         color: white;
-        padding: 2rem 1rem;
+    /* 높이 약 3배 확대 */
+        min-height: 9rem; /* 기존 padding: 1rem → 높이 약 3배 수준 */
+        padding: 0 1rem;  /* 위아래 여백 제거, 좌우 여백만 유지 */
+    
+    /* 내용 하단 정렬 */
+        display: flex;
+        flex-direction: column;
+        justify-content: flex-end;  /* 내부 텍스트를 아래쪽으로 */
+    
         border-radius: 0;
         margin: -1rem -1rem 0.5rem -1rem;
         box-shadow: 0 1px 3px rgba(0,0,0,0.12);
     }
+
     
     .header-title {
         font-size: 1.125rem;
