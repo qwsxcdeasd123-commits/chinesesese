@@ -3,6 +3,7 @@ import json
 import time
 from datetime import datetime
 import os
+import textwrap
 
 # ==================== Anthropic 설정 ====================
 try:
@@ -571,43 +572,56 @@ if st.session_state.selected_language == 'chinese' and st.session_state.detailed
             </div>
             """, unsafe_allow_html=True)
 
-        # 문법(단일 HTML로 묶어서 박스 누락 방지)
-        grammar_list = _normalize_grammar_list(analysis.get("grammar", []))
-        if grammar_list:
-            grammar_html = """
-            <div class="analysis-section">
-              <div class="analysis-label">语法 (문법)</div>
-              <div class="grammar-box">
-            """
-            for g in grammar_list:
-                title   = g.get("title","문법 포인트")
-                pattern = g.get("pattern","확인 불가")
-                exp     = g.get("explanation_ko","확인 불가")
-                grammar_html += f"""
-                <div style="margin-bottom:0.5rem;">
-                  <strong>{title}</strong> — <code>{pattern}</code>
-                  <div style="margin-top:0.25rem;">{exp}</div>
-                """
+        # 문법(단일 HTML로 묶고, 들여쓰기 제거하여 코드블록 방지)
+grammar_list = _normalize_grammar_list(analysis.get("grammar", []))
+if grammar_list:
+    grammar_html = textwrap.dedent("""
+    <div class="analysis-section">
+      <div class="analysis-label">语法 (문법)</div>
+      <div class="grammar-box">
+    """)
+    for g in grammar_list:
+        title   = g.get("title","문법 포인트")
+        pattern = g.get("pattern","확인 불가")
+        exp     = g.get("explanation_ko","확인 불가")
 
-                exs = g.get("examples",[])
-                if exs:
-                    grammar_html += "<div style='margin:0.25rem 0 0.25rem 0.75rem;'>예문:</div>"
-                    for e in exs:
-                        grammar_html += (
-                            f"<div style='margin-left:1rem;'>• {e.get('cn','')} "
-                            f"<span style='color:#888'>({e.get('pinyin','')})</span> — {e.get('ko','')}</div>"
-                        )
+        # 항목 헤더 + 설명
+        grammar_html += textwrap.dedent(f"""
+        <div style="margin-bottom:0.5rem;">
+          <strong>{title}</strong> — <code>{pattern}</code>
+          <div style="margin-top:0.25rem;">{exp}</div>
+        """)
 
-                pits = g.get("pitfalls",[])
-                if pits:
-                    grammar_html += "<div style='margin:0.25rem 0 0.25rem 0.75rem;'>주의:</div>"
-                    for p in pits:
-                        grammar_html += f"<div style='margin-left:1rem;'>- {p}</div>"
+        # 예문
+        exs = g.get("examples",[])
+        if exs:
+            grammar_html += textwrap.dedent("""
+            <div style='margin:0.25rem 0 0.25rem 0.75rem;'>예문:</div>
+            """)
+            for e in exs:
+                grammar_html += (
+                    f"<div style='margin-left:1rem;'>• {e.get('cn','')} "
+                    f"<span style='color:#888'>({e.get('pinyin','')})</span> — {e.get('ko','')}</div>"
+                )
 
-                grammar_html += "<hr style='border-top:1px dashed #fde68a; margin:0.5rem 0;'/>"
-                grammar_html += "</div>"
-            grammar_html += "</div></div>"
-            st.markdown(grammar_html, unsafe_allow_html=True)
+        # 주의
+        pits = g.get("pitfalls",[])
+        if pits:
+            grammar_html += textwrap.dedent("""
+            <div style='margin:0.25rem 0 0.25rem 0.75rem;'>주의:</div>
+            """)
+            for p in pits:
+                grammar_html += f"<div style='margin-left:1rem;'>- {p}</div>"
+
+        # 구분선 + 항목 닫기
+        grammar_html += "<hr style='border-top:1px dashed #fde68a; margin:0.5rem 0;'/>"
+        grammar_html += "</div>"
+
+    # 박스/섹션 닫기
+    grammar_html += "</div></div>"
+
+    st.markdown(grammar_html, unsafe_allow_html=True)
+
 
         # 어휘 노트
         vocab_list = _normalize_vocab_list(analysis.get("vocabulary", []))
