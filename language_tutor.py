@@ -410,7 +410,7 @@ st.markdown("""
     /* 빈 화면 안내 */
     .empty-state {
         text-align: center;
-        padding: 2rem 1rem;
+        padding: 1.5rem 1rem;
     }
     
     .empty-icon {
