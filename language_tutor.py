@@ -1,8 +1,8 @@
 # -*- coding: utf-8 -*-
 """
-Streamlit Language Tutor — WeChat-style UI with analysis sidebar
-Runtime: Python 3.10+ / Streamlit 1.33+
-Deps (optional): openai>=1.40.0, anthropic>=0.34.0
+Streamlit Language Tutor — WeChat-like UI (정교한 스타일) + 분석 사이드바
+Python 3.10+ / Streamlit 1.33+
+옵션: openai>=1.40.0, anthropic>=0.34.0
 """
 
 import os
@@ -13,7 +13,10 @@ from datetime import datetime
 
 import streamlit as st
 
-APP_TITLE = "언어 학습 챗봇 (WeChat 스타일)"
+# =========================
+# 기본 설정
+# =========================
+APP_TITLE = "언어 학습 챗봇"
 DEFAULT_LANGUAGE = "중국어"
 LANGUAGE_MAP = {
     "중국어": {"code": "zh", "label": "중국어", "flag": "🇨🇳"},
@@ -24,13 +27,11 @@ LANGUAGE_MAP = {
     "독일어": {"code": "de", "label": "독일어", "flag": "🇩🇪"},
     "한국어": {"code": "ko", "label": "한국어", "flag": "🇰🇷"},
 }
+LEVELS = {"초급": "beginner", "중급": "intermediate", "고급": "advanced"}
 
-LEVELS = {
-    "초급": "beginner",
-    "중급": "intermediate",
-    "고급": "advanced",
-}
-
+# =========================
+# 모델 백엔드 (선택)
+# =========================
 def _has_openai():
     try:
         import openai  # noqa: F401
@@ -53,8 +54,7 @@ def call_model_stream(
     max_tokens: int = 400,
 ) -> T.Iterable[str]:
     """
-    Streaming text generator. Supports OpenAI or Anthropic when installed.
-    Falls back to a local mock for offline demo.
+    OpenAI/Anthropic 설치 시 스트리밍, 미설치 시 mock로 빠른 데모 동작
     """
     provider = provider.lower()
     if provider == "auto":
@@ -97,13 +97,12 @@ def call_model_stream(
                     yield text
         return
 
-    # Mock provider (fast, offline) — deterministic short reply
+    # mock: 매우 빠른 로컬 데모
     user_last = next((m["content"] for m in reversed(messages) if m["role"] == "user"), "")
-    mock = f"네, 확인했습니다. 다음 주제로 계속하시겠습니까?\n\n원문: {user_last[:90]}"
+    mock = f"네, 확인했습니다. 간단히 계속해 보겠습니다.\n\n원문: {user_last[:90]}"
     for token in mock.split():
         yield token + " "
         time.sleep(0.01)
-
 
 def analyze_text_json(
     text: str,
@@ -114,27 +113,23 @@ def analyze_text_json(
     max_tokens: int = 400,
 ) -> dict:
     """
-    Ask the model to return strict JSON for: feedback, words(pinyin/meaning),
-    grammar, study notes.
-    If no provider available, returns a lightweight heuristic fallback.
+    피드백/단어·병음/문법/노트 JSON만 반환하도록 요청.
+    백엔드 없으면 간단한 대체값 반환.
     """
-    sys = (
-        "You are a precise language-teaching assistant. "
-        "Return STRICT JSON only. No preface."
-    )
+    sys = "You are a precise language-teaching assistant. Return STRICT JSON only."
     prompt = f"""
 언어 코드: {lang_code}
 학습자 수준: {level}
-아래 학습자 발화를 분석하여 다음 스키마로 JSON만 출력하십시오.
+다음 스키마로 JSON만 출력하십시오.
 
 {{
-  "feedback": "학습자 발화에 대한 간단하고 구체적인 피드백",
-  "words": [{{"term": "단어", "pinyin": "병음 또는 로마자 표기(가능 시)", "meaning": "국문 뜻"}}],
+  "feedback": "학습자 발화에 대한 간단한 정교 피드백",
+  "words": [{{"term": "단어", "pinyin": "가능 시 로마자/병음", "meaning": "국문 뜻"}}],
   "grammar": "핵심 문법/표현 설명",
   "notes": "추가 학습 노트"
 }}
 
-분석 대상 텍스트:
+분석 대상:
 {text}
 """
     messages = [{"role": "system", "content": sys}, {"role": "user", "content": prompt}]
@@ -181,24 +176,24 @@ def analyze_text_json(
             raw = raw.replace("```json", "").replace("```", "").strip()
             return json.loads(raw)
 
-    # Mock analysis (no external calls)
     return {
-        "feedback": "문장 구조는 명확합니다. 목적어 앞 전치 사용에 주의하십시오.",
+        "feedback": "어순은 적절합니다. 조사/전치사 위치에 유의하십시오.",
         "words": [
             {"term": "你好", "pinyin": "nǐ hǎo", "meaning": "안녕하세요"},
-            {"term": "今天", "pinyin": "jīntiān", "meaning": "오늘"},
+            {"term": "明天", "pinyin": "míngtiān", "meaning": "내일"},
         ],
         "grammar": "인사 표현과 의문문 어순 확인.",
-        "notes": "주제 확장용 어휘를 3개 더 만들어 연습하십시오.",
+        "notes": "주제 확장 어휘 3개 이상으로 문장을 재구성해 보십시오.",
     }
 
-
+# =========================
+# 상태 관리
+# =========================
 def reset_state():
     st.session_state.messages = []
     st.session_state.analysis = None
     st.session_state.chat_language = DEFAULT_LANGUAGE
     st.session_state.level_label = "중급"
-
 
 def ensure_state():
     if "messages" not in st.session_state:
@@ -207,47 +202,127 @@ def ensure_state():
     st.session_state.setdefault("chat_language", DEFAULT_LANGUAGE)
     st.session_state.setdefault("level_label", "중급")
 
-
-def wechat_css():
+# =========================
+# WeChat 스타일 CSS
+# =========================
+def inject_wechat_css():
     st.markdown(
         """
-        <style>
-        .block-container {padding-top: 1rem; padding-bottom: 1rem; max-width: 860px;}
-        header {visibility: hidden;}
-        .bubble {padding: 10px 14px; border-radius: 12px; margin: 6px 0; max-width: 80%;}
-        .bubble-user {background: #95ec69; color: #0b0b0b; margin-left: auto; border-top-right-radius: 6px;}
-        .bubble-bot {background: #ffffff; color: #111; border: 1px solid #e5e6ea; border-top-left-radius: 6px;}
-        .row {display: flex; align-items: flex-end; gap: 8px;}
-        .row-right {justify-content: flex-end;}
-        .avatar {width: 34px; height: 34px; border-radius: 6px; background: #f0f0f0; display:flex; align-items:center; justify-content:center; font-size: 18px;}
-        .meta {font-size: 11px; color: #8a8f98; margin-top: 2px;}
-        .chat-wrap {height: min(60vh, 600px); overflow: auto; padding: 8px; background: #f7f7f7; border: 1px solid #ececec; border-radius: 12px;}
-        .toolbar {display:flex; gap:8px; align-items:center;}
-        .stTextInput>div>div>input {border-radius: 20px !important;}
-        </style>
+<style>
+/* 컨테이너 넓이 및 배경 */
+.block-container {padding-top:0; padding-bottom:0; max-width: 860px;}
+body {background:#ededed;}
+header {visibility:hidden;}
+
+/* 상단 네비게이션 바 (WeChat 유사) */
+.wx-nav {
+  position: sticky; top: 0; z-index: 10;
+  height: 54px; display:flex; align-items:center; justify-content:space-between;
+  padding: 0 12px; background:#f7f7f7; border-bottom:1px solid #e6e6e6;
+  font-weight:600;
+}
+.wx-nav .left, .wx-nav .right {display:flex; gap:12px; align-items:center;}
+.wx-nav .title {font-size:16px;}
+
+/* 채팅 프레임 (모바일 비율) */
+.phone-frame {
+  margin: 10px auto 0 auto; width: 420px; max-width: 92vw;
+  background:#eaeaea; border:1px solid #d8d8d8; border-radius:28px;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.06);
+  overflow:hidden;
+}
+.phone-header {
+  height: 44px; background:#f6f6f6; border-bottom:1px solid #e5e5e5;
+  display:flex; align-items:center; justify-content:center; font-size:13px; color:#777;
+}
+
+/* 채팅 영역 */
+.chat-wrap {
+  height: 62vh; max-height: 680px; overflow:auto;
+  padding: 10px 12px 12px 12px; background:#ececec;
+}
+
+/* 버블 공통 */
+.row {display:flex; align-items:flex-end; margin:8px 0;}
+.row.left  {justify-content:flex-start;}
+.row.right {justify-content:flex-end;}
+
+.avatar {
+  width: 34px; height:34px; border-radius:6px; background:#d4d4d4;
+  display:flex; align-items:center; justify-content:center; font-size:18px; margin:0 6px;
+}
+
+/* 버블(좌: 회색, 우: 연녹색) */
+.bubble {
+  position:relative; max-width: 72%; padding: 9px 12px; font-size:14px; line-height: 1.42;
+  border-radius:10px; word-wrap:break-word; white-space:pre-wrap;
+}
+.bubble.bot {
+  background:#ffffff; border:1px solid #e7e7e7; color:#111;
+  border-top-left-radius:4px;
+}
+.bubble.user {
+  background:#95ec69; color:#0b0b0b;
+  border-top-right-radius:4px;
+}
+
+/* 꼬리 (삼각형) */
+.bubble.bot:after {
+  content:""; position:absolute; left:-6px; bottom:8px;
+  border-width:6px; border-style:solid;
+  border-color:transparent #fff transparent transparent;
+  filter: drop-shadow(-1px 0 0 #e7e7e7);
+}
+.bubble.user:after {
+  content:""; position:absolute; right:-6px; bottom:8px;
+  border-width:6px; border-style:solid;
+  border-color:transparent transparent transparent #95ec69;
+}
+
+/* 타임스탬프 */
+.meta {font-size:11px; color:#8a8f98; margin:4px 8px;}
+
+/* 입력 바 */
+.input-bar {
+  display:flex; align-items:center; gap:8px;
+  padding: 8px; background:#f7f7f7; border-top:1px solid #e5e5e5;
+}
+.input-box {
+  flex:1; background:#fff; border:1px solid #e6e6e6; border-radius:22px; padding:8px 12px;
+}
+.icon-btn {
+  width:36px; height:36px; display:flex; align-items:center; justify-content:center;
+  background:#fff; border:1px solid #e6e6e6; border-radius:50%;
+}
+.stTextInput>div>div>input {border:none !important;}
+
+/* 사이드바 타이포 */
+.sidebar-title {font-weight:700; margin-bottom:6px;}
+</style>
         """,
         unsafe_allow_html=True,
     )
 
-
-def render_bubble(role: str, content: str, ts: str):
-    is_user = role == "user"
-    row_cls = "row row-right" if is_user else "row"
-    bubble_cls = "bubble bubble-user" if is_user else "bubble bubble-bot"
-    avatar = "🙂" if is_user else "🧑‍🏫"
+# =========================
+# UI 렌더
+# =========================
+def render_row(role: str, content: str, ts: str, show_avatar: bool = True):
+    side = "right" if role == "user" else "left"
+    bubble_cls = "bubble user" if role == "user" else "bubble bot"
+    avatar = "🙂" if role == "user" else "🧑‍🏫"
     st.markdown(
         f"""
-        <div class="{row_cls}">
-          <div class="avatar">{avatar}</div>
-          <div>
-            <div class="{bubble_cls}">{content}</div>
-            <div class="meta">{ts}</div>
-          </div>
-        </div>
+<div class="row {side}">
+  {'<div class="avatar">'+avatar+'</div>' if side=='left' and show_avatar else ''}
+  <div>
+    <div class="{bubble_cls}">{content}</div>
+    <div class="meta">{ts}</div>
+  </div>
+  {'<div class="avatar">'+avatar+'</div>' if side=='right' and show_avatar else ''}
+</div>
         """,
         unsafe_allow_html=True,
     )
-
 
 def download_payload(messages: list, lang_label: str, level_label: str) -> str:
     data = {
@@ -259,17 +334,19 @@ def download_payload(messages: list, lang_label: str, level_label: str) -> str:
     }
     return json.dumps(data, ensure_ascii=False, indent=2)
 
-
+# =========================
+# 메인
+# =========================
 def main():
     ensure_state()
-    st.set_page_config(page_title=APP_TITLE, layout="centered")
-    wechat_css()
+    st.set_page_config(page_title=f"{APP_TITLE}", layout="centered")
+    inject_wechat_css()
 
-    # Sidebar
+    # ---------- 사이드바 ----------
     with st.sidebar:
         flag = LANGUAGE_MAP[st.session_state.chat_language]["flag"]
-        st.markdown(f"### {flag} {APP_TITLE}")
-        st.caption("사이드바: 분석 · 저장 · 설정")
+        st.markdown(f"<div class='sidebar-title'>{flag} {APP_TITLE}</div>", unsafe_allow_html=True)
+        st.caption("분석 · 저장 · 설정")
 
         st.subheader("설정")
         lang_label = st.selectbox(
@@ -305,15 +382,11 @@ def main():
         st.write(analysis.get("feedback", "분석 결과 없음"))
 
         st.markdown("**2) 단어 뜻 · 병음**")
-        words = analysis.get("words", [])
-        if words:
-            for w in words[:30]:
-                term = w.get("term", "")
-                pinyin = w.get("pinyin", "")
-                meaning = w.get("meaning", "")
-                st.markdown(f"- {term} ({pinyin}) — {meaning}")
-        else:
-            st.caption("표시할 항목 없음")
+        for w in analysis.get("words", [])[:40]:
+            term = w.get("term", "")
+            pinyin = w.get("pinyin", "")
+            meaning = w.get("meaning", "")
+            st.markdown(f"- {term} ({pinyin}) — {meaning}")
 
         st.markdown("**3) 문법 설명**")
         st.write(analysis.get("grammar", "분석 결과 없음"))
@@ -324,22 +397,51 @@ def main():
         txt = "\n".join([f"[{m['role']}] {m['content']}" for m in st.session_state.messages])
         st.download_button("텍스트 다운로드", data=txt.encode("utf-8"), file_name="conversation.txt")
 
-    # Header
-    flag = LANGUAGE_MAP[st.session_state.chat_language]["flag"]
-    st.markdown(f"## {flag} {LANGUAGE_MAP[st.session_state.chat_language]['label']} · {st.session_state.level_label}")
+    # ---------- 중앙(폰 프레임) ----------
+    # 상단 네비게이션 바
+    st.markdown(
+        f"""
+<div class="wx-nav">
+  <div class="left">＜</div>
+  <div class="title">{LANGUAGE_MAP[st.session_state.chat_language]['label']} · {st.session_state.level_label}</div>
+  <div class="right">···</div>
+</div>
+        """,
+        unsafe_allow_html=True,
+    )
 
-    # Chat area
+    st.markdown('<div class="phone-frame">', unsafe_allow_html=True)
+    st.markdown('<div class="phone-header">대화</div>', unsafe_allow_html=True)
+
+    # 채팅 영역
     st.markdown('<div class="chat-wrap">', unsafe_allow_html=True)
+    # 연속 동일 화자 아바타 최소화
+    prev_role = None
     for msg in st.session_state.messages:
-        render_bubble(msg["role"], msg["content"], msg["ts"])
+        show_avatar = (msg["role"] != prev_role)
+        safe = (
+            msg["content"]
+            .replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
+        )
+        render_row(msg["role"], safe, msg["ts"], show_avatar=show_avatar)
+        prev_role = msg["role"]
     st.markdown("</div>", unsafe_allow_html=True)
 
-    # Input area
-    with st.container(border=True):
-        cols = st.columns([8, 1])
-        user_input = cols[0].text_input("메시지 입력", key="chat_input", label_visibility="collapsed")
-        send = cols[1].button("전송")
+    # 입력 바
+    with st.container():
+        c1, c2, c3, c4 = st.columns([1, 9, 1, 1])
+        with c1:
+            st.markdown('<div class="icon-btn">＋</div>', unsafe_allow_html=True)
+        with c2:
+            user_input = st.text_input("", key="chat_input", label_visibility="collapsed", placeholder="메시지 입력…")
+        with c3:
+            st.markdown('<div class="icon-btn">🙂</div>', unsafe_allow_html=True)
+        with c4:
+            send = st.button("⮕", use_container_width=True)
 
+    st.markdown("</div>", unsafe_allow_html=True)  # phone-frame 종료
+
+    # ---------- 전송 처리 ----------
     if send and user_input.strip():
         ts = datetime.now().strftime("%Y-%m-%d %H:%M")
         st.session_state.messages.append({"role": "user", "content": user_input.strip(), "ts": ts})
@@ -348,32 +450,40 @@ def main():
             "You are a concise, corrective language partner. "
             "Reply in the target language. Keep responses short (<= 3 sentences)."
         )
-        messages = [{"role": "system", "content": system_prompt}]
+        msgs = [{"role": "system", "content": system_prompt}]
         for m in st.session_state.messages:
-            messages.append({"role": m["role"], "content": m["content"]})
+            msgs.append({"role": m["role"], "content": m["content"]})
 
+        # 스트리밍 표시: 리스트에 임시 추가 없이 placeholder로만 미리보기 후 최종 1회 기록
         with st.spinner("응답 생성 중…"):
-            chunks = call_model_stream(
-                messages=messages,
-                provider=provider,
-                temperature=temp,
-                max_tokens=max_tok,
-            )
             acc = ""
             ph = st.empty()
-            for ck in chunks:
+            for ck in call_model_stream(
+                messages=msgs, provider=provider, temperature=temp, max_tokens=max_tok
+            ):
                 acc += ck
+                safe_acc = acc.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
                 ph.markdown(
-                    "<div class='row'><div><div class='bubble bubble-bot'>"
-                    + acc.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
-                    + "</div></div></div>",
+                    f"""
+<div class="phone-frame" style="border:none; box-shadow:none; margin:0; background:transparent;">
+  <div class="chat-wrap" style="height:auto; max-height:none; background:transparent; padding:0;">
+    <div class="row left">
+      <div>
+        <div class="bubble bot">{safe_acc}</div>
+      </div>
+    </div>
+  </div>
+</div>
+                    """,
                     unsafe_allow_html=True,
                 )
-                time.sleep(0.001)
+                time.sleep(0.002)
 
+        ph.empty()
         ts2 = datetime.now().strftime("%Y-%m-%d %H:%M")
         st.session_state.messages.append({"role": "assistant", "content": acc.strip(), "ts": ts2})
 
+        # 최신 사용자 발화 자동 분석 캐시
         try:
             st.session_state.analysis = analyze_text_json(
                 user_input.strip(),
@@ -386,7 +496,6 @@ def main():
             pass
 
         st.rerun()
-
 
 if __name__ == "__main__":
     main()
