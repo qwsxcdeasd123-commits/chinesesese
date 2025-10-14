@@ -298,14 +298,14 @@ with st.sidebar:
                 st.rerun()
                 
     new_goal_input = st.text_input("새 목표 추가", key="goal_input", placeholder="목표를 입력하세요...")
-    if st.button("➕ 추가", use_container_width=True):
+    if st.button("➕ 추가", type="primary", use_container_width=True):
         if new_goal_input.strip():
             st.session_state.goals.append(new_goal_input.strip())
             st.rerun()
 
     st.markdown("---")
     save_disabled = len(st.session_state.messages) == 0
-    if st.button("💾 대화 저장", disabled=save_disabled, use_container_width=True, key='save_btn'):
+    if st.button("💾 대화 저장", type="primary", disabled=save_disabled, use_container_width=True, key='save_btn'):
         text_content = f"언어 학습 기록\n언어: {current_lang['name']}\n숙련도: {proficiency_kr}\n날짜: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n\n"
         for msg in st.session_state.messages:
             role = "학습자" if msg['role'] == 'user' else "튜터"
