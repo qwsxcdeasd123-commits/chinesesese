@@ -175,9 +175,12 @@ st.markdown("""
     .stButton { margin-bottom: 0 !important; }
     .stButton > button[kind="primary"] {
         background: #09b83e; color: #fff; border: none; border-radius: 50%;
-        padding: 0.625rem; width: 2.5rem; height: 2.5rem; font-size: 1.125rem; transition: background 0.2s;
-        display: flex; align-items: center; justify-content: center; min-width: 2.5rem; margin: 0;
+        padding: 0.4rem; width: 1.75rem; height: 1.75rem;
+        font-size: 0.875rem; transition: background 0.2s;
+        display: flex; align-items: center; justify-content: center;
+        min-width: 1.75rem; margin: 0;
     }
+
     .stButton > button[kind="primary"]:hover { background: #07a33a; }
     .stButton > button[kind="primary"]:disabled { background: #d9d9d9; color: #999; }
 
