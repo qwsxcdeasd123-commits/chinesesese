@@ -132,6 +132,17 @@ st.markdown("""
     .feedback-list { margin: 0.25rem 0 0 0.75rem; padding: 0; }
     .feedback-list li { margin: 0.1rem 0; }
 
+    /* 목표 아이템 */
+    .goal-item {
+        background: #ffffff;
+        border: 1px solid #e5e5e5;
+        border-radius: 0.375rem;
+        padding: 0.625rem;
+        margin: 0.5rem 0;
+        font-size: 0.875rem;
+        color: #353535;
+    }
+
     /* ===== 상세분석 폰트 통일: 병음과 동일(0.875rem) ===== */
     .pinyin-box,
     .grammar-box,
