@@ -47,7 +47,7 @@ st.markdown("""
 /* ➕ 추가 / 💾 대화 저장 버튼의 글꼴 크기 축소 */
 button[key="goal_input"] + div button,
 button[key="save_btn"] {
-    font-size: 0.75rem !important;
+    font-size: 0.3rem !important;
 }
 <style>
     .stApp { max-width: 100%; background-color: #ededed; }
