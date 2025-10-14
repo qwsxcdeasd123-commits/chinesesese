@@ -44,11 +44,6 @@ st.set_page_config(
 
 # ==================== 스타일 ====================
 st.markdown("""
-/* ➕ 추가 / 💾 대화 저장 버튼의 글꼴 크기 축소 */
-button[key="goal_input"] + div button,
-button[key="save_btn"] {
-    font-size: 0.3rem !important;
-}
 <style>
     .stApp { max-width: 100%; background-color: #ededed; }
     .block-container { padding-top: 0rem !important; padding-bottom: 0 !important; max-width: 100% !important; }
