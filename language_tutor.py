@@ -293,7 +293,7 @@ with st.sidebar:
         with col1:
             st.write(f"• {goal}")  # 이 줄을 st.markdown에서 st.write로 변경
         with col2:
-            if st.button("×", key=f"del_goal_{idx}"):
+            if st.button("×", key=f"del_goal_{idx}", type="primary"):
                 st.session_state.goals.pop(idx)
                 st.rerun()
                 
