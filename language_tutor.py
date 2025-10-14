@@ -376,6 +376,9 @@ else:
 
 st.markdown('</div>', unsafe_allow_html=True)
 
+st.markdown("""
+<style>
+/* --- 추가한 CSS --- */
 button[key="save_btn"] {
     border-radius: 0.375rem !important;
     width: 100% !important;
@@ -383,6 +386,8 @@ button[key="save_btn"] {
     padding: 0.5rem 1rem !important;
     font-size: 0.9rem !important;
 }
+</style>
+""", unsafe_allow_html=True)
 
 # ==================== 입력 영역 ====================
 col_input, col_button = st.columns([10, 1])
