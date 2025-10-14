@@ -376,6 +376,14 @@ else:
 
 st.markdown('</div>', unsafe_allow_html=True)
 
+button[key="save_btn"] {
+    border-radius: 0.375rem !important;
+    width: 100% !important;
+    height: auto !important;
+    padding: 0.5rem 1rem !important;
+    font-size: 0.9rem !important;
+}
+
 # ==================== 입력 영역 ====================
 col_input, col_button = st.columns([10, 1])
 with col_input:
