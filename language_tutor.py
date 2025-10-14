@@ -289,12 +289,14 @@ with st.sidebar:
     st.markdown("---")
     st.markdown("### 🎯 학습 목표")
     for idx, goal in enumerate(st.session_state.goals):
-        cols = st.columns([5, 1])
-        cols[0].write(f"• {goal}")
-        if cols[1].button("×", key=f"del_goal_{idx}"):
-            st.session_state.goals.pop(idx)
-            st.rerun()
-
+        col1, col2 = st.columns([5, 1])
+        with col1:
+            st.write(f"• {goal}")  # 이 줄을 st.markdown에서 st.write로 변경
+        with col2:
+            if st.button("×", key=f"del_goal_{idx}"):
+                st.session_state.goals.pop(idx)
+                st.rerun()
+                
     new_goal_input = st.text_input("새 목표 추가", key="goal_input", placeholder="목표를 입력하세요...")
     if st.button("➕ 추가", use_container_width=True):
         if new_goal_input.strip():
