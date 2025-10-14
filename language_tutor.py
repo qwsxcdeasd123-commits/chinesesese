@@ -291,7 +291,7 @@ with st.sidebar:
     for idx, goal in enumerate(st.session_state.goals):
         col1, col2 = st.columns([5, 1])
         with col1:
-            st.markdown(f'<div class="goal-item">• {goal}</div>', unsafe_allow_html=True)
+            st.write(f"• {goal}")  # 이 줄을 st.markdown에서 st.write로 변경
         with col2:
             if st.button("×", key=f"del_goal_{idx}"):
                 st.session_state.goals.pop(idx)
