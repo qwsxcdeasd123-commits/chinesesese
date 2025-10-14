@@ -44,6 +44,11 @@ st.set_page_config(
 
 # ==================== 스타일 ====================
 st.markdown("""
+/* ➕ 추가 / 💾 대화 저장 버튼의 글꼴 크기 축소 */
+button[key="goal_input"] + div button,
+button[key="save_btn"] {
+    font-size: 0.75rem !important;
+}
 <style>
     .stApp { max-width: 100%; background-color: #ededed; }
     .block-container { padding-top: 0rem !important; padding-bottom: 0 !important; max-width: 100% !important; }
@@ -321,6 +326,19 @@ with st.sidebar:
             use_container_width=True
         )
 
+st.markdown("""
+<style>
+/* --- 추가한 CSS --- */
+button[key="save_btn"] {
+    border-radius: 0.375rem !important;
+    width: 100% !important;
+    height: auto !important;
+    padding: 0.5rem 1rem !important;
+    font-size: 0.9rem !important;
+}
+</style>
+""", unsafe_allow_html=True)
+
 # ==================== 메시지 표시 ====================
 st.markdown('<div class="messages-container">', unsafe_allow_html=True)
 
@@ -375,19 +393,6 @@ else:
         """, unsafe_allow_html=True)
 
 st.markdown('</div>', unsafe_allow_html=True)
-
-st.markdown("""
-<style>
-/* --- 추가한 CSS --- */
-button[key="save_btn"] {
-    border-radius: 0.375rem !important;
-    width: 100% !important;
-    height: auto !important;
-    padding: 0.5rem 1rem !important;
-    font-size: 0.9rem !important;
-}
-</style>
-""", unsafe_allow_html=True)
 
 # ==================== 입력 영역 ====================
 col_input, col_button = st.columns([10, 1])
